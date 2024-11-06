@@ -31,8 +31,6 @@ namespace SVMV
         unsigned _framesInFlight;
         unsigned _activeFrame;
 
-        shaderc::Compiler _shaderCompiler;
-
         // seperate fields for bootstrap objects because they only contain c-style vulkan handles
         vkb::Instance _bootstrapInstance;
         vkb::Device _bootstrapDevice;
@@ -56,18 +54,12 @@ namespace SVMV
         std::vector<vk::Framebuffer> _framebuffers;
 
         vk::RenderPass _renderPass;
-        vk::PipelineLayout _pipelineLayout;
-        vk::Pipeline _pipeline;
 
         vk::CommandPool _commandPool;
-        std::vector<vk::CommandBuffer> _commandBuffers;
 
         std::vector<vk::Semaphore> _imageReadySemaphores;
         std::vector<vk::Semaphore> _renderCompleteSemaphores;
         std::vector<vk::Fence> _inFlightFences;
-
-        vk::Buffer _vertexBuffer;
-        vk::DeviceMemory _vertexBufferMemory;
 
     public:
         VulkanRenderer();
@@ -85,12 +77,6 @@ namespace SVMV
         vk::Device getDevice();
 
     private:
-        std::string readFile(const std::string& file);
-        std::string preprocessShader(const std::string& name, const std::string& shaderCode, shaderc_shader_kind shaderKind);
-        std::vector<uint32_t> compileShader(const std::string& name, const std::string& shaderCode, shaderc_shader_kind shaderKind, bool optimize);
-
-        uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags propertyFlags);
-
         void setSurface(vk::SurfaceKHR surface);
 
         void createDevice();
@@ -98,14 +84,9 @@ namespace SVMV
         void createSwapchain();
         void recreateSwapchain();
 
-        vk::ShaderModule createShaderModule(const std::vector<uint32_t> code);
         void createRenderPass();
-        void createGraphicsPipeline();
         void createFramebuffers();
         void createCommandPool();
-        void createVertexBuffer();
-        void createCommandBuffers();
-        void recordCommandBuffer(vk::CommandBuffer buffer, uint32_t image);
         void createSynchronisationObjects();
     };
 }

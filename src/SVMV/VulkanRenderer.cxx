@@ -48,11 +48,8 @@ void VulkanRenderer::initializeRenderer(vk::SurfaceKHR surface)
     createSwapchain();
 
     createRenderPass();
-    //createGraphicsPipeline();
     createFramebuffers();
     createCommandPool();
-    //createVertexBuffer();
-    //createCommandBuffers();
     createSynchronisationObjects();
 }
 
@@ -83,9 +80,6 @@ void VulkanRenderer::draw()
 
     unsigned imageIndex = result.value;
 
-    //_commandBuffers[_activeFrame].reset();
-    //recordCommandBuffer(_commandBuffers[_activeFrame], imageIndex);
-
     auto vector = _scene->recordFrameCommandBuffers(_activeFrame, _framebuffers[imageIndex], _bootstrapSwapchain.extent.width, _bootstrapSwapchain.extent.height);
 
     vk::SubmitInfo submitInfo = {};
@@ -97,9 +91,6 @@ void VulkanRenderer::draw()
     submitInfo.waitSemaphoreCount = 1;
     submitInfo.pWaitSemaphores = waitSemaphores;
     submitInfo.pWaitDstStageMask = waitStages;
-
-    //submitInfo.commandBufferCount = 1;
-    //submitInfo.pCommandBuffers = &_commandBuffers[_activeFrame];
 
     submitInfo.commandBufferCount = vector.size();
     submitInfo.pCommandBuffers = vector.data();
@@ -140,9 +131,6 @@ void VulkanRenderer::cleanup()
 {
     _scene.reset();
 
-    _device.destroyBuffer(_vertexBuffer);
-    _device.freeMemory(_vertexBufferMemory);
-
     for (int i = 0; i < _framesInFlight; i++)
     {
         _device.destroySemaphore(_imageReadySemaphores[i]);
@@ -157,8 +145,6 @@ void VulkanRenderer::cleanup()
         _device.destroyFramebuffer(_framebuffers[i]);
     }
 
-    _device.destroyPipeline(_pipeline);
-    _device.destroyPipelineLayout(_pipelineLayout);
     _device.destroyRenderPass(_renderPass);
 
     for (int i = 0; i < _imageViews.size(); i++)
@@ -180,75 +166,6 @@ vk::Instance VulkanRenderer::getInstance()
 vk::Device VulkanRenderer::getDevice()
 {
     return _device;
-}
-
-std::string VulkanRenderer::readFile(const std::string& file)
-{
-    std::stringstream output;
-    std::string line;
-
-    std::string test = RESOURCE_DIR"/shaders/" + file;
-
-    std::ifstream fileStream(test);
-
-    if (!fileStream.is_open())
-    {
-        throw std::runtime_error("ifstream: failed to open file: " + file);
-    }
-
-    while (std::getline(fileStream, line))
-    {
-        output << line;
-        output << '\n';
-    }
-
-    return output.str();
-}
-
-std::string VulkanRenderer::preprocessShader(const std::string& name, const std::string& shaderCode, shaderc_shader_kind shaderKind)
-{
-    shaderc::CompileOptions options;
-
-    shaderc::PreprocessedSourceCompilationResult result = _shaderCompiler.PreprocessGlsl(shaderCode, shaderKind, name.c_str(), options);
-
-    if (result.GetCompilationStatus() != shaderc_compilation_status_success)
-    {
-        throw std::runtime_error("shaderc: failed to preprocess shader: " + result.GetErrorMessage());
-    }
-
-    return std::string(result.cbegin(), result.cend());
-}
-
-std::vector<uint32_t> VulkanRenderer::compileShader(const std::string& name, const std::string& shaderCode, shaderc_shader_kind shaderKind, bool optimize)
-{
-    shaderc::CompileOptions options;
-
-    options.SetSourceLanguage(shaderc_source_language_glsl);
-
-    shaderc::SpvCompilationResult result = _shaderCompiler.CompileGlslToSpv(shaderCode, shaderKind, name.c_str());
-
-    if (result.GetCompilationStatus() != shaderc_compilation_status_success)
-    {
-        throw std::runtime_error("shaderc: failed to compile shader: " + result.GetErrorMessage());
-    }
-
-    return std::vector<uint32_t>(result.cbegin(), result.cend());
-}
-
-uint32_t VulkanRenderer::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags propertyFlags)
-{
-    vk::PhysicalDeviceMemoryProperties properties = _physicalDevice.getMemoryProperties();
-
-    for (unsigned i = 0; i < properties.memoryTypeCount; i++)
-    {
-        if (typeFilter & (1 << i) && (properties.memoryTypes[i].propertyFlags & propertyFlags) == propertyFlags)
-        {
-            return i;
-        }
-    }
-
-    throw std::runtime_error("vulkan: failed to find suitable memory type");
-    return 0;
 }
 
 void VulkanRenderer::setSurface(vk::SurfaceKHR surface)
@@ -391,16 +308,6 @@ void VulkanRenderer::recreateSwapchain()
     createSynchronisationObjects();
 }
 
-vk::ShaderModule VulkanRenderer::createShaderModule(const std::vector<uint32_t> code)
-{
-    vk::ShaderModuleCreateInfo info = {};
-    info.sType = vk::StructureType::eShaderModuleCreateInfo;
-    info.codeSize = code.size() * sizeof(uint32_t);
-    info.pCode = code.data();
-
-    return _device.createShaderModule(info);
-}
-
 void VulkanRenderer::createRenderPass()
 {
     vk::AttachmentDescription attachmentDescription = {};
@@ -432,124 +339,6 @@ void VulkanRenderer::createRenderPass()
     _renderPass = _device.createRenderPass(info);
 }
 
-void VulkanRenderer::createGraphicsPipeline()
-{
-    std::string vertexShaderCode = readFile("shader.vert");
-    std::string fragmentShaderCode = readFile("shader.frag");
-
-    vk::ShaderModule vertexShader = createShaderModule(compileShader("vertexShader", vertexShaderCode, shaderc_shader_kind::shaderc_glsl_vertex_shader, false));
-    vk::ShaderModule fragmentShader = createShaderModule(compileShader("fragmentShader", fragmentShaderCode, shaderc_shader_kind::shaderc_glsl_fragment_shader, false));
-
-    vk::PipelineShaderStageCreateInfo shaderStages[2];
-
-    shaderStages[0].sType = vk::StructureType::ePipelineShaderStageCreateInfo;
-    shaderStages[0].stage = vk::ShaderStageFlagBits::eVertex;
-    shaderStages[0].module = vertexShader;
-    shaderStages[0].pName = "main";
-
-    shaderStages[1].sType = vk::StructureType::ePipelineShaderStageCreateInfo;
-    shaderStages[1].stage = vk::ShaderStageFlagBits::eFragment;
-    shaderStages[1].module = fragmentShader;
-    shaderStages[1].pName = "main";
-
-    vk::VertexInputBindingDescription vertexBindingDescription = VulkanVertex::getBindingDescription();
-    std::array<vk::VertexInputAttributeDescription, 2> vertexAttributeDescriptions = VulkanVertex::getAttributeDescriptions();
-
-    vk::PipelineVertexInputStateCreateInfo vertexInputStateInfo = {};
-    vertexInputStateInfo.sType = vk::StructureType::ePipelineVertexInputStateCreateInfo;
-    vertexInputStateInfo.vertexBindingDescriptionCount = 1;
-    vertexInputStateInfo.pVertexBindingDescriptions = &vertexBindingDescription;
-    vertexInputStateInfo.vertexAttributeDescriptionCount = vertexAttributeDescriptions.size();
-    vertexInputStateInfo.pVertexAttributeDescriptions = vertexAttributeDescriptions.data();
-
-    vk::PipelineInputAssemblyStateCreateInfo assemblyStateInfo = {};
-    assemblyStateInfo.sType = vk::StructureType::ePipelineInputAssemblyStateCreateInfo;
-    assemblyStateInfo.topology = vk::PrimitiveTopology::eTriangleList;
-    assemblyStateInfo.primitiveRestartEnable = vk::False;
-
-    vk::Viewport viewport;
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
-    viewport.width = _bootstrapSwapchain.extent.width;
-    viewport.height = _bootstrapSwapchain.extent.height;
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-
-    vk::Rect2D scissor;
-    scissor.offset = vk::Offset2D(0, 0);
-    scissor.extent = vk::Extent2D(_bootstrapSwapchain.extent.width, _bootstrapSwapchain.extent.height);
-
-    std::vector<vk::DynamicState> dynamicStates = { vk::DynamicState::eViewport, vk::DynamicState::eScissor };
-    vk::PipelineDynamicStateCreateInfo dynamicStateInfo = {};
-    dynamicStateInfo.sType = vk::StructureType::ePipelineDynamicStateCreateInfo;
-    dynamicStateInfo.dynamicStateCount = dynamicStates.size();
-    dynamicStateInfo.pDynamicStates = dynamicStates.data();
-
-    vk::PipelineViewportStateCreateInfo viewportStateInfo = {};
-    viewportStateInfo.sType = vk::StructureType::ePipelineViewportStateCreateInfo;
-    viewportStateInfo.viewportCount = 1;
-    viewportStateInfo.pViewports = &viewport;
-    viewportStateInfo.scissorCount = 1;
-    viewportStateInfo.pScissors = &scissor;
-
-    vk::PipelineRasterizationStateCreateInfo rasterizationStateInfo = {};
-    rasterizationStateInfo.sType = vk::StructureType::ePipelineRasterizationStateCreateInfo;
-    rasterizationStateInfo.depthClampEnable = vk::False;
-    rasterizationStateInfo.rasterizerDiscardEnable = vk::False;
-    rasterizationStateInfo.polygonMode = vk::PolygonMode::eFill;
-    rasterizationStateInfo.lineWidth = 1.0f;
-    rasterizationStateInfo.cullMode = vk::CullModeFlagBits::eBack;
-    rasterizationStateInfo.frontFace = vk::FrontFace::eClockwise;
-    rasterizationStateInfo.depthBiasEnable = vk::False;
-
-    vk::PipelineMultisampleStateCreateInfo multisamplingInfo = {};
-    multisamplingInfo.sType = vk::StructureType::ePipelineMultisampleStateCreateInfo;
-    multisamplingInfo.sampleShadingEnable = vk::False;
-    multisamplingInfo.rasterizationSamples = vk::SampleCountFlagBits::e1;
-
-    vk::PipelineColorBlendAttachmentState colorBlendAttachmentState = {};
-    colorBlendAttachmentState.colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
-    colorBlendAttachmentState.blendEnable = vk::False;
-
-    vk::PipelineColorBlendStateCreateInfo colorBlendStateInfo = {};
-    colorBlendStateInfo.sType = vk::StructureType::ePipelineColorBlendStateCreateInfo;
-    colorBlendStateInfo.logicOpEnable = vk::False;
-    colorBlendStateInfo.attachmentCount = 1;
-    colorBlendStateInfo.pAttachments = &colorBlendAttachmentState;
-
-    vk::PipelineLayoutCreateInfo pipelineLayoutInfo = {};
-    pipelineLayoutInfo.sType = vk::StructureType::ePipelineLayoutCreateInfo;
-
-    _pipelineLayout = _device.createPipelineLayout(pipelineLayoutInfo);
-
-    vk::GraphicsPipelineCreateInfo info = {};
-    info.sType = vk::StructureType::eGraphicsPipelineCreateInfo;
-    info.stageCount = 2;
-    info.pStages = shaderStages;
-    info.pVertexInputState = &vertexInputStateInfo;
-    info.pInputAssemblyState = &assemblyStateInfo;
-    info.pViewportState = &viewportStateInfo;
-    info.pRasterizationState = &rasterizationStateInfo;
-    info.pMultisampleState = &multisamplingInfo;
-    info.pColorBlendState = &colorBlendStateInfo;
-    info.pDynamicState = &dynamicStateInfo;
-    info.layout = _pipelineLayout;
-    info.renderPass = _renderPass;
-    info.subpass = 0;
-
-    auto result = _device.createGraphicsPipeline(nullptr, info);
-
-    if (result.result != vk::Result::eSuccess)
-    {
-        throw std::runtime_error("vulkan: failed to create graphics pipeline");
-    }
-
-    _pipeline = result.value;
-
-    _device.destroyShaderModule(vertexShader);
-    _device.destroyShaderModule(fragmentShader);
-}
-
 void VulkanRenderer::createFramebuffers()
 {
     _framebuffers.resize(_imageViews.size());
@@ -577,105 +366,6 @@ void VulkanRenderer::createCommandPool()
     info.queueFamilyIndex = _graphicsQueueFamily;
     
     _commandPool = _device.createCommandPool(info);
-}
-
-void VulkanRenderer::createVertexBuffer()
-{
-    const std::vector<VulkanVertex> vertices =
-    {
-    {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-    {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-    {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
-    };
-
-    vk::BufferCreateInfo info = {};
-    info.sType = vk::StructureType::eBufferCreateInfo;
-    info.size = sizeof(vertices[0]) * vertices.size();
-    info.usage = vk::BufferUsageFlagBits::eVertexBuffer;
-    info.sharingMode = vk::SharingMode::eExclusive;
-
-    _vertexBuffer = _device.createBuffer(info);
-
-    vk::MemoryRequirements requirements = _device.getBufferMemoryRequirements(_vertexBuffer);
-
-    vk::MemoryAllocateInfo allocateInfo = {};
-    allocateInfo.sType = vk::StructureType::eMemoryAllocateInfo;
-    allocateInfo.allocationSize = requirements.size;
-    allocateInfo.memoryTypeIndex = findMemoryType(requirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-
-    _vertexBufferMemory = _device.allocateMemory(allocateInfo);
-
-    _device.bindBufferMemory(_vertexBuffer, _vertexBufferMemory, 0);
-
-    void* mapped = _device.mapMemory(_vertexBufferMemory, 0, info.size);
-
-    if (mapped == nullptr)
-    {
-        throw std::runtime_error("vulkan: failed to map memory");
-    }
-
-    memcpy(mapped, vertices.data(), info.size);
-    _device.unmapMemory(_vertexBufferMemory);
-}
-
-void VulkanRenderer::createCommandBuffers()
-{
-    vk::CommandBufferAllocateInfo info = {};
-    info.sType = vk::StructureType::eCommandBufferAllocateInfo;
-    info.commandPool = _commandPool;
-    info.level = vk::CommandBufferLevel::ePrimary;
-    info.commandBufferCount = _framesInFlight;
-
-    _commandBuffers = _device.allocateCommandBuffers(info);
-}
-
-void VulkanRenderer::recordCommandBuffer(vk::CommandBuffer buffer, uint32_t image)
-{
-    vk::CommandBufferBeginInfo bufferBeginInfo = {};
-    bufferBeginInfo.sType = vk::StructureType::eCommandBufferBeginInfo;
-    
-    buffer.begin(bufferBeginInfo);
-
-    vk::RenderPassBeginInfo renderPassBeginInfo = {};
-    renderPassBeginInfo.sType = vk::StructureType::eRenderPassBeginInfo;
-    renderPassBeginInfo.renderPass = _renderPass;
-    renderPassBeginInfo.framebuffer = _framebuffers[image];
-    renderPassBeginInfo.renderArea.offset = vk::Offset2D(0, 0);
-    renderPassBeginInfo.renderArea.extent = _bootstrapSwapchain.extent;
-    
-    vk::ClearValue clearValue(vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f));
-
-    renderPassBeginInfo.clearValueCount = 1;
-    renderPassBeginInfo.pClearValues = &clearValue;
-
-    buffer.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
-
-    buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, _pipeline);
-
-    vk::DeviceSize offsets[] = {0};
-    buffer.bindVertexBuffers(0, 1, &_vertexBuffer, offsets);
-
-    vk::Viewport viewport;
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
-    viewport.width = _bootstrapSwapchain.extent.width;
-    viewport.height = _bootstrapSwapchain.extent.height;
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-
-    buffer.setViewport(0, 1, &viewport);
-
-    vk::Rect2D scissor;
-    scissor.offset = vk::Offset2D(0, 0);
-    scissor.extent = vk::Extent2D(_bootstrapSwapchain.extent.width, _bootstrapSwapchain.extent.height);
-
-    buffer.setScissor(0, 1, &scissor);
-
-    buffer.draw(3, 1, 0, 0);
-
-    buffer.endRenderPass();
-
-    buffer.end();
 }
 
 void VulkanRenderer::createSynchronisationObjects()
