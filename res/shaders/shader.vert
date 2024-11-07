@@ -2,15 +2,20 @@
 #extension GL_EXT_buffer_reference : require
 #extension GL_EXT_buffer_reference2 : require
 
-layout(location = 0) out vec3 outColor;
+layout(location = 0) out vec4 outColor;
 
 layout(buffer_reference, std430) readonly buffer PositionBuffer {
     vec3 positions[];
 };
 
+layout(buffer_reference, std430) readonly buffer ColorBuffer {
+    vec4 colors[];
+};
+
 layout(push_constant) uniform constants {
     mat4 mvp;
     PositionBuffer positionBuffer;
+    ColorBuffer colorBuffer;
 } PushConstants;
 
 void main() {
@@ -19,5 +24,5 @@ void main() {
     gl_Position = PushConstants.mvp * vec4(position, 1.0);
     gl_Position = gl_Position * vec4(1.0, -1.0, 1.0, 1.0);
 
-    outColor = vec3(0.5, 0.4, 0.6);
+    outColor = PushConstants.colorBuffer.colors[gl_VertexIndex];
 }

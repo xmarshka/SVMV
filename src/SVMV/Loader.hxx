@@ -31,6 +31,21 @@ namespace SVMV
 
             void processMesh(std::shared_ptr<Node> node, const tinygltf::Mesh& mesh);
             void processPrimitive(std::shared_ptr<Node> node, const tinygltf::Primitive& gltfPrimitive);
+
+            template <typename sourceType>
+            void copyAccessorToDestination(sourceType* source, sourceType* destination, size_t count, size_t componentCount, size_t byteStride);
+
+            template <typename sourceType>
+            void copyAccessorToDestination(sourceType* source, sourceType* destination, size_t count, size_t componentCount, size_t byteStride, size_t destinationComponentCount);
+
+            template <typename sourceType>
+            void copyAccessorToDestination(sourceType* source, sourceType* destination, size_t count, size_t componentCount, size_t byteStride, size_t destinationComponentCount, float fillerValue);
+
+            template <typename sourceType>
+            void copyNormalizedAccessorToDestination(sourceType* source, float* destination, size_t count, size_t componentCount, size_t byteStride);
+
+            template <typename sourceType>
+            void copyNormalizedAccessorToDestination(sourceType* source, float* destination, size_t count, size_t componentCount, size_t byteStride, size_t destinationComponentCount, float fillerValue);
         }
     }
 }

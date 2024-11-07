@@ -31,6 +31,7 @@ namespace SVMV
         {
             glm::mat4 mvpMatrix;
             vk::DeviceAddress positionsAddress;
+            vk::DeviceAddress colorsAddress;
         };
 
     private:

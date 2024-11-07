@@ -17,9 +17,11 @@ namespace SVMV
         std::vector<uint8_t> data;
         size_t count;
         size_t components;
+        size_t padding;
         size_t componentSize; // in bytes
-        size_t stride; // in bytes
 
         AttributeType type;
+
+        Attribute(size_t count, size_t components, size_t padding, size_t componentSize, AttributeType type) : count(count), components(components), padding(padding), componentSize(componentSize), type(type) {}
     };
 }

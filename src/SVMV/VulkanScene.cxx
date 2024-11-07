@@ -5,6 +5,10 @@
 
 using namespace SVMV;
 
+namespace {
+    std::unordered_map<std::shared_ptr<Primitive>, VulkanDrawable> drawableMap;
+}
+
 VulkanScene::VulkanScene() : _allocator(nullptr)
 {
 }
@@ -41,6 +45,8 @@ VulkanScene::~VulkanScene()
 
 void VulkanScene::loadSceneToGPUMemory(std::shared_ptr<Scene> scene, vk::RenderPass renderPass, vkb::Swapchain swapchain, unsigned int framesInFlight)
 {
+    drawableMap.clear();
+
     divideSceneIntoCategories(scene);
     getCollectionSizes();
 
@@ -48,6 +54,7 @@ void VulkanScene::loadSceneToGPUMemory(std::shared_ptr<Scene> scene, vk::RenderP
 
     VulkanBuffer indexStagingBuffer;
     VulkanBuffer positionStagingBuffer;
+    VulkanBuffer colorStagingBuffer;
 
     vk::CommandBufferAllocateInfo commandBufferInfo = {};
     commandBufferInfo.sType = vk::StructureType::eCommandBufferAllocateInfo;
@@ -74,10 +81,16 @@ void VulkanScene::loadSceneToGPUMemory(std::shared_ptr<Scene> scene, vk::RenderP
             switch (attribute->type)
             {
             case Attribute::AttributeType::POSITION:
-                size = collection.totalVertexCount * (attribute->components + 1) * attribute->componentSize; // TODO: +1 is there for padding, fix later
+                size = collection.totalVertexCount * (attribute->components + attribute->padding) * attribute->componentSize;
                 bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eShaderDeviceAddress;
                 collection.positions.create(_allocator, size, bufferUsage, VMA_MEMORY_USAGE_GPU_ONLY);
                 positionStagingBuffer.create(_allocator, size, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY);
+                break;
+            case Attribute::AttributeType::COLOR:
+                size = collection.totalVertexCount * (attribute->components + attribute->padding) * attribute->componentSize;
+                bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eShaderDeviceAddress;
+                collection.colors.create(_allocator, size, bufferUsage, VMA_MEMORY_USAGE_GPU_ONLY);
+                colorStagingBuffer.create(_allocator, size, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY);
                 break;
             default:
                 break;
@@ -102,12 +115,15 @@ void VulkanScene::loadSceneToGPUMemory(std::shared_ptr<Scene> scene, vk::RenderP
                 {
                 case Attribute::AttributeType::POSITION:
                     data = positionStagingBuffer.allocation->GetMappedData();
+                    memcpy(reinterpret_cast<uint8_t*>(data) + (vertexOffset * (attribute->components + attribute->padding) * attribute->componentSize), attribute->data.data(), attribute->count * (attribute->components + attribute->padding) * attribute->componentSize);
+                    break;
+                case Attribute::AttributeType::COLOR:
+                    data = colorStagingBuffer.allocation->GetMappedData();
+                    memcpy(reinterpret_cast<uint8_t*>(data) + (vertexOffset * (attribute->components + attribute->padding) * attribute->componentSize), attribute->data.data(), attribute->count * (attribute->components + attribute->padding) * attribute->componentSize);
                     break;
                 default:
                     break;
                 }
-
-                memcpy(reinterpret_cast<uint8_t*>(data) + (vertexOffset * (attribute->components + 1) * attribute->componentSize), attribute->data.data(), attribute->count * (attribute->components + 1) * attribute->componentSize);
             }
 
             indexOffset += collection.objects[i].indexCount;
@@ -126,6 +142,7 @@ void VulkanScene::loadSceneToGPUMemory(std::shared_ptr<Scene> scene, vk::RenderP
         commandBuffer.copyBuffer(indexStagingBuffer.buffer, collection.indices.buffer, 1, &indexCopyRegion);
 
         vk::BufferCopy positionCopyRegion = {};
+        vk::BufferCopy colorCopyRegion = {};
 
         for (const auto& attribute : collection.sources[0]->attributes) // for each attribute type, not every actual attribute of every primitive
         {
@@ -134,6 +151,10 @@ void VulkanScene::loadSceneToGPUMemory(std::shared_ptr<Scene> scene, vk::RenderP
             case Attribute::AttributeType::POSITION:
                 positionCopyRegion.size = collection.positions.info.size;
                 commandBuffer.copyBuffer(positionStagingBuffer.buffer, collection.positions.buffer, 1, &positionCopyRegion);
+                break;
+            case Attribute::AttributeType::COLOR:
+                colorCopyRegion.size = collection.positions.info.size;
+                commandBuffer.copyBuffer(colorStagingBuffer.buffer, collection.colors.buffer, 1, &colorCopyRegion);
                 break;
             default:
                 break;
@@ -225,7 +246,7 @@ void VulkanScene::createCollectionPipelines(vk::RenderPass renderPass, vkb::Swap
             rasterizationStateInfo.rasterizerDiscardEnable = vk::False;
             rasterizationStateInfo.polygonMode = vk::PolygonMode::eFill;
             rasterizationStateInfo.lineWidth = 1.0f;
-            rasterizationStateInfo.cullMode = vk::CullModeFlagBits::eNone;
+            rasterizationStateInfo.cullMode = vk::CullModeFlagBits::eBack;
             rasterizationStateInfo.frontFace = vk::FrontFace::eCounterClockwise;
             rasterizationStateInfo.depthBiasEnable = vk::False;
 
@@ -323,6 +344,10 @@ std::vector<vk::CommandBuffer> VulkanScene::recordFrameCommandBuffers(unsigned i
         deviceAddressInfo.buffer = pair.second.positions.buffer;
 
         constants.positionsAddress = _device.getBufferAddress(deviceAddressInfo);
+
+        deviceAddressInfo.buffer = pair.second.colors.buffer;
+
+        constants.colorsAddress = _device.getBufferAddress(deviceAddressInfo);
 
         vk::CommandBuffer& buffer = pair.second.commandBuffers[frame];
         buffer.reset();

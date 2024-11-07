@@ -24,7 +24,7 @@ void Application::initialize(int width, int height, const std::string& name)
     _renderer.createInstance();
     _renderer.initializeRenderer(vk::SurfaceKHR(createGLFWWindowAndSurface(width, height, name)));
 
-    _renderer.loadScene(Loader::loadScene(RESOURCE_DIR"/models/Box.gltf"));
+    _renderer.loadScene(Loader::loadScene(RESOURCE_DIR"/models/SimpleMeshes.gltf"));
 }
 
 void Application::cleanup()
