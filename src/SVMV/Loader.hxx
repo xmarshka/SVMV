@@ -3,6 +3,7 @@
 #include <tiny_gltf.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/quaternion.hpp>
 #include <vulkan/vulkan.hpp>
 
 #include <SVMV/Scene.hxx>

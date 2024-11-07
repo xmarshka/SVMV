@@ -24,5 +24,6 @@ void main() {
     gl_Position = PushConstants.mvp * vec4(position, 1.0);
     gl_Position = gl_Position * vec4(1.0, -1.0, 1.0, 1.0);
 
-    outColor = PushConstants.colorBuffer.colors[gl_VertexIndex];
+    //outColor = PushConstants.colorBuffer.colors[gl_VertexIndex];
+    outColor = vec4(0.8, 0.7, 0.6, 1.0);
 }

@@ -60,7 +60,7 @@ namespace SVMV
         void createCollectionPipelines(vk::RenderPass renderPass, vkb::Swapchain swapchain);
         void createCollectionCommandBuffers(unsigned int framesInFlight);
 
-        void divideSceneIntoCategories(std::shared_ptr<Scene> scene);
+        void divideSceneIntoCategories(std::shared_ptr<Scene> scene, std::shared_ptr<Node> rootNode);
         void getCollectionSizes();
         unsigned char getVertexAttributeCategory(const std::shared_ptr<Primitive> primitive);
     };

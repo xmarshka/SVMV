@@ -76,6 +76,28 @@ std::shared_ptr<Node> Loader::details::processNode(std::shared_ptr<Node> parentN
     {
         node->transform = glm::make_mat4(gltfNode.matrix.data()); // TODO: test this
     }
+    else
+    {
+        glm::mat4 scale(1.0f);
+        glm::mat4 rotate(1.0f);
+        glm::mat4 translate(1.0f);
+
+        if (gltfNode.translation.size() != 0)
+        {
+            translate = glm::translate(translate, glm::vec3(gltfNode.translation[0], gltfNode.translation[1], gltfNode.translation[2]));
+        }
+        if (gltfNode.rotation.size() != 0)
+        {
+            rotate = glm::toMat4(glm::quat(gltfNode.rotation[3], gltfNode.rotation[0], gltfNode.rotation[1], gltfNode.rotation[2]));
+        }
+        if (gltfNode.scale.size() != 0)
+        {
+            scale = glm::scale(scale, glm::vec3(gltfNode.scale[0], gltfNode.scale[1], gltfNode.scale[2]));
+        }
+
+        node->transform = translate * rotate * scale * node->transform;
+    }
+
 
     if (gltfNode.mesh != -1)
     {

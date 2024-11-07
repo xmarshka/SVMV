@@ -6,7 +6,7 @@
 using namespace SVMV;
 
 namespace {
-    std::unordered_map<std::shared_ptr<Primitive>, VulkanDrawable> drawableMap;
+    std::unordered_map<std::shared_ptr<Primitive>, VulkanDrawable> primitiveDrawableMap;
 }
 
 VulkanScene::VulkanScene() : _allocator(nullptr)
@@ -32,6 +32,7 @@ VulkanScene::~VulkanScene()
         if (pair.second.graphicsPipeline != nullptr)
         {
             _device.destroyPipeline(pair.second.graphicsPipeline);
+            _device.destroyPipelineLayout(pair.second.layout);
         }
     }
 
@@ -43,13 +44,118 @@ VulkanScene::~VulkanScene()
     }
 }
 
+void VulkanScene::setScene(std::shared_ptr<Scene> scene, vk::RenderPass renderPass, vkb::Swapchain swapchain, unsigned int framesInFlight)
+{
+    primitiveDrawableMap.clear();
+
+    divideSceneIntoCategories(scene, scene->root);
+
+    loadSceneToGPUMemory(scene, renderPass, swapchain, framesInFlight);
+}
+
+void VulkanScene::divideSceneIntoCategories(std::shared_ptr<Scene> scene, std::shared_ptr<Node> rootNode)
+{
+    if (rootNode->mesh)
+    {
+        for (const auto& primitive : rootNode->mesh->primitives)
+        {
+            VulkanDrawableCategory category = {};
+
+            if (primitive->material == nullptr)
+            {
+                category.shaderCategory = VulkanDrawableCategory::ShaderCategory::FLAT;
+            }
+
+            category.vertexAttributeCategory = getVertexAttributeCategory(primitive);
+
+            if (_collectionMap.find(category) == _collectionMap.end())
+            {
+                VulkanDrawableCollection collection;
+                _collectionMap[category] = collection;
+            }
+
+            auto& collection = _collectionMap[category];
+
+            VulkanDrawable drawable(rootNode->transform);
+
+            if (primitiveDrawableMap.find(primitive) != primitiveDrawableMap.end()) // this primitive is already in the collection and has at least one associated drawable
+            {
+                drawable.firstIndex = primitiveDrawableMap[primitive].firstIndex;
+                drawable.indexCount = primitiveDrawableMap[primitive].indexCount;
+                drawable.vertexCount = primitiveDrawableMap[primitive].vertexCount;
+            }
+            else
+            {
+                collection.sources.emplace_back(primitive);
+                drawable.firstIndex = collection.totalIndexCount;
+                drawable.indexCount = primitive->indices.size();
+                drawable.vertexCount = primitive->attributes[0]->count;
+
+                primitiveDrawableMap[primitive] = drawable;
+
+                collection.totalVertexCount += drawable.vertexCount;
+                collection.totalIndexCount += drawable.indexCount;
+                collection.totalIndexSize += drawable.indexCount * sizeof(primitive->indices[0]);
+            }
+
+            collection.drawables.emplace_back(drawable);
+        }
+    }
+
+    for (const auto& childNode : rootNode->children)
+    {
+        divideSceneIntoCategories(scene, childNode);
+    }
+}
+
+//void VulkanScene::getCollectionSizes()
+//{
+//    size_t totalIndexSize = 0;
+//    size_t totalVertexCount = 0;
+//
+//    for (auto& categoryCollection : _collectionMap)
+//    {
+//        for (const auto& primitiveDrawables : categoryCollection.second.sourcesMap)
+//        {
+//            for (const auto& drawable : primitiveDrawables.second)
+//            {
+//                drawable->firstIndex = totalIndexSize / sizeof(primitiveDrawables.first->indices[0]);
+//                drawable->indexCount = primitiveDrawables.first->indices.size();
+//                drawable->vertexCount = primitiveDrawables.first->attributes[0]->count;
+//            }
+//
+//            totalIndexSize += primitiveDrawables.first->indices.size() * sizeof(primitiveDrawables.first->indices[0]);
+//            totalVertexCount += primitiveDrawables.first->attributes[0]->count;
+//
+//            categoryCollection.second.totalIndexSize = totalIndexSize;
+//            categoryCollection.second.totalVertexCount = totalVertexCount;
+//        }
+//    }
+//}
+
+unsigned char VulkanScene::getVertexAttributeCategory(const std::shared_ptr<Primitive> primitive)
+{
+    unsigned char attributeField = 0;
+
+    for (const auto& attribute : primitive->attributes)
+    {
+        switch (attribute->type)
+        {
+        case Attribute::AttributeType::POSITION:
+            attributeField = attributeField | (1);
+            break;
+        case Attribute::AttributeType::COLOR:
+            attributeField = attributeField | (1 << 1);
+            break;
+        default:
+            break;
+        }
+    }
+
+    return attributeField;
+}
 void VulkanScene::loadSceneToGPUMemory(std::shared_ptr<Scene> scene, vk::RenderPass renderPass, vkb::Swapchain swapchain, unsigned int framesInFlight)
 {
-    drawableMap.clear();
-
-    divideSceneIntoCategories(scene);
-    getCollectionSizes();
-
     _renderPass = renderPass;
 
     VulkanBuffer indexStagingBuffer;
@@ -104,10 +210,10 @@ void VulkanScene::loadSceneToGPUMemory(std::shared_ptr<Scene> scene, vk::RenderP
         size_t indexSize = sizeof(collection.sources[0]->indices[0]);
 
         // copy data to staging buffers
-        for (int i = 0; i < collection.objects.size(); i++)
+        for (int i = 0; i < collection.sources.size(); i++)
         {
             data = indexStagingBuffer.allocation->GetMappedData();
-            memcpy(reinterpret_cast<uint8_t*>(data) + (indexOffset * indexSize), collection.sources[i]->indices.data(), collection.objects[i].indexCount * indexSize);
+            memcpy(reinterpret_cast<uint8_t*>(data) + (indexOffset * indexSize), collection.sources[i]->indices.data(), collection.drawables[i].indexCount * indexSize);
 
             for (const auto& attribute : collection.sources[i]->attributes)
             {
@@ -126,8 +232,8 @@ void VulkanScene::loadSceneToGPUMemory(std::shared_ptr<Scene> scene, vk::RenderP
                 }
             }
 
-            indexOffset += collection.objects[i].indexCount;
-            vertexOffset += collection.objects[i].vertexCount;
+            indexOffset += collection.drawables[i].indexCount;
+            vertexOffset += collection.drawables[i].vertexCount;
         }
 
         vk::CommandBufferBeginInfo commandBufferBeginInfo = {};
@@ -318,11 +424,6 @@ void VulkanScene::createCollectionCommandBuffers(unsigned int framesInFlight)
     }
 }
 
-void VulkanScene::setScene(std::shared_ptr<Scene> scene, vk::RenderPass renderPass, vkb::Swapchain swapchain, unsigned int framesInFlight)
-{
-    loadSceneToGPUMemory(scene, renderPass, swapchain, framesInFlight);
-}
-
 std::vector<vk::CommandBuffer> VulkanScene::recordFrameCommandBuffers(unsigned int frame, vk::Framebuffer framebuffer, const unsigned int viewportWidth, const unsigned int viewportHeight)
 {
     std::vector<vk::CommandBuffer> vector;
@@ -347,7 +448,7 @@ std::vector<vk::CommandBuffer> VulkanScene::recordFrameCommandBuffers(unsigned i
 
         deviceAddressInfo.buffer = pair.second.colors.buffer;
 
-        constants.colorsAddress = _device.getBufferAddress(deviceAddressInfo);
+        //constants.colorsAddress = _device.getBufferAddress(deviceAddressInfo);
 
         vk::CommandBuffer& buffer = pair.second.commandBuffers[frame];
         buffer.reset();
@@ -373,7 +474,6 @@ std::vector<vk::CommandBuffer> VulkanScene::recordFrameCommandBuffers(unsigned i
 
         buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pair.second.graphicsPipeline);
 
-        buffer.pushConstants(pair.second.layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(constants), &constants);
 
         vk::DeviceSize offsets[] = { 0 };
         buffer.bindIndexBuffer(pair.second.indices.buffer, offsets[0], vk::IndexType::eUint32);
@@ -394,9 +494,12 @@ std::vector<vk::CommandBuffer> VulkanScene::recordFrameCommandBuffers(unsigned i
 
         buffer.setScissor(0, 1, &scissor);
 
-        for (const auto& primitive : pair.second.objects)
+        for (const auto& drawable : pair.second.drawables)
         {
-            buffer.drawIndexed(primitive.indexCount, 1, primitive.firstIndex, 0, 0);
+            constants.mvpMatrix = projection * view * drawable.modelMatrix;
+
+            buffer.pushConstants(pair.second.layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(constants), &constants);
+            buffer.drawIndexed(drawable.indexCount, 1, drawable.firstIndex, 0, 0);
         }
 
         buffer.endRenderPass();
@@ -409,81 +512,3 @@ std::vector<vk::CommandBuffer> VulkanScene::recordFrameCommandBuffers(unsigned i
     return vector;
 }
 
-void VulkanScene::divideSceneIntoCategories(std::shared_ptr<Scene> scene)
-{
-    for (const auto& mesh : scene->meshes)
-    {
-        for (const auto& primitive : mesh->primitives)
-        {
-            VulkanDrawableCategory category = {};
-
-            if (primitive->material == nullptr)
-            {
-                category.shaderCategory = VulkanDrawableCategory::ShaderCategory::FLAT;
-            }
-
-            category.vertexAttributeCategory = getVertexAttributeCategory(primitive);
-
-            if (_collectionMap.find(category) != _collectionMap.end())
-            {
-                _collectionMap[category].sources.emplace_back(primitive);
-            }
-            else
-            {
-                VulkanDrawableCollection collection;
-                _collectionMap[category] = collection;
-                _collectionMap[category].sources.emplace_back(primitive);
-            }
-        }
-    }
-}
-
-void VulkanScene::getCollectionSizes()
-{
-    size_t totalIndexSize = 0;
-    size_t totalVertexCount = 0;
-
-    for (auto& pair : _collectionMap)
-    {
-        pair.second.objects.reserve(pair.second.sources.size());
-
-        for (const auto& primitive : pair.second.sources)
-        {
-            VulkanDrawable drawable = {};
-            drawable.firstIndex = totalIndexSize / sizeof(primitive->indices[0]);
-
-            totalIndexSize += primitive->indices.size() * sizeof(primitive->indices[0]);
-            totalVertexCount += primitive->attributes[0]->count;
-
-            drawable.indexCount = primitive->indices.size();
-            drawable.vertexCount = primitive->attributes[0]->count;
-
-            pair.second.objects.push_back(drawable);
-
-            pair.second.totalIndexSize = totalIndexSize;
-            pair.second.totalVertexCount = totalVertexCount;
-        }
-    }
-}
-
-unsigned char VulkanScene::getVertexAttributeCategory(const std::shared_ptr<Primitive> primitive)
-{
-    unsigned char attributeField = 0;
-
-    for (const auto& attribute : primitive->attributes)
-    {
-        switch (attribute->type)
-        {
-        case Attribute::AttributeType::POSITION:
-            attributeField = attributeField | (1);
-            break;
-        case Attribute::AttributeType::COLOR:
-            attributeField = attributeField | (1 << 1);
-            break;
-        default:
-            break;
-        }
-    }
-
-    return attributeField;
-}

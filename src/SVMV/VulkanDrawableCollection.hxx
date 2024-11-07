@@ -5,6 +5,8 @@
 #include <SVMV/VulkanBuffer.hxx>
 
 #include <vector>
+#include <memory>
+#include <unordered_map>
 
 namespace SVMV
 {
@@ -16,11 +18,11 @@ namespace SVMV
     struct VulkanDrawableCollection
     {
         std::vector<std::shared_ptr<Primitive>> sources;
+        std::vector<VulkanDrawable> drawables;
 
-        size_t totalVertexCount;
-        size_t totalIndexSize;
-
-        std::vector<VulkanDrawable> objects;
+        size_t totalVertexCount = 0;
+        size_t totalIndexCount = 0;
+        size_t totalIndexSize = 0;
 
         VulkanBuffer indices;
         VulkanBuffer positions;
