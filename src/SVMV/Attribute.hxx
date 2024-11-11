@@ -10,7 +10,7 @@ namespace SVMV
     public:
         enum class AttributeType
         {
-            POSITION, COLOR, TEXCOORD, NORMAL, TANGENT, BINORMAL
+            POSITION, COLOR, TEXCOORD, NORMAL, TANGENT, BINORMAL, _COUNT
         };
 
     public:

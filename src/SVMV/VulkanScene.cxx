@@ -47,10 +47,14 @@ VulkanScene::~VulkanScene()
 void VulkanScene::setScene(std::shared_ptr<Scene> scene, vk::RenderPass renderPass, vkb::Swapchain swapchain, unsigned int framesInFlight)
 {
     primitiveDrawableMap.clear();
+    _renderPass = renderPass;
 
     divideSceneIntoCategories(scene, scene->root);
 
-    loadSceneToGPUMemory(scene, renderPass, swapchain, framesInFlight);
+    loadSceneToGPUMemory(scene, swapchain, framesInFlight);
+
+    createCollectionPipelines(renderPass, swapchain);
+    createCollectionCommandBuffers(framesInFlight);
 }
 
 void VulkanScene::divideSceneIntoCategories(std::shared_ptr<Scene> scene, std::shared_ptr<Node> rootNode)
@@ -108,128 +112,85 @@ void VulkanScene::divideSceneIntoCategories(std::shared_ptr<Scene> scene, std::s
     }
 }
 
-//void VulkanScene::getCollectionSizes()
-//{
-//    size_t totalIndexSize = 0;
-//    size_t totalVertexCount = 0;
-//
-//    for (auto& categoryCollection : _collectionMap)
-//    {
-//        for (const auto& primitiveDrawables : categoryCollection.second.sourcesMap)
-//        {
-//            for (const auto& drawable : primitiveDrawables.second)
-//            {
-//                drawable->firstIndex = totalIndexSize / sizeof(primitiveDrawables.first->indices[0]);
-//                drawable->indexCount = primitiveDrawables.first->indices.size();
-//                drawable->vertexCount = primitiveDrawables.first->attributes[0]->count;
-//            }
-//
-//            totalIndexSize += primitiveDrawables.first->indices.size() * sizeof(primitiveDrawables.first->indices[0]);
-//            totalVertexCount += primitiveDrawables.first->attributes[0]->count;
-//
-//            categoryCollection.second.totalIndexSize = totalIndexSize;
-//            categoryCollection.second.totalVertexCount = totalVertexCount;
-//        }
-//    }
-//}
-
 unsigned char VulkanScene::getVertexAttributeCategory(const std::shared_ptr<Primitive> primitive)
 {
     unsigned char attributeField = 0;
 
     for (const auto& attribute : primitive->attributes)
     {
-        switch (attribute->type)
-        {
-        case Attribute::AttributeType::POSITION:
-            attributeField = attributeField | (1);
-            break;
-        case Attribute::AttributeType::COLOR:
-            attributeField = attributeField | (1 << 1);
-            break;
-        default:
-            break;
-        }
+        attributeField = attributeField | (1 << static_cast<uint32_t>(attribute->type));
     }
 
     return attributeField;
 }
-void VulkanScene::loadSceneToGPUMemory(std::shared_ptr<Scene> scene, vk::RenderPass renderPass, vkb::Swapchain swapchain, unsigned int framesInFlight)
-{
-    _renderPass = renderPass;
 
+void VulkanScene::loadSceneToGPUMemory(std::shared_ptr<Scene> scene, vkb::Swapchain swapchain, unsigned int framesInFlight)
+{
     VulkanBuffer indexStagingBuffer;
-    VulkanBuffer positionStagingBuffer;
-    VulkanBuffer colorStagingBuffer;
+    std::vector<VulkanBuffer> stagingBuffers;
+    stagingBuffers.reserve(static_cast<size_t>(Attribute::AttributeType::_COUNT));
+    std::vector<vk::BufferCopy> stagingBufferCopyRegions;
+    stagingBufferCopyRegions.reserve(static_cast<size_t>(Attribute::AttributeType::_COUNT));
 
     vk::CommandBufferAllocateInfo commandBufferInfo = {};
     commandBufferInfo.sType = vk::StructureType::eCommandBufferAllocateInfo;
     commandBufferInfo.level = vk::CommandBufferLevel::ePrimary;
     commandBufferInfo.commandPool = _commandPool;
     commandBufferInfo.commandBufferCount = 1;
-
     vk::CommandBuffer commandBuffer = _device.allocateCommandBuffers(commandBufferInfo)[0];
 
-    for (auto& pair : _collectionMap)
+    for (auto& categoryCollection : _collectionMap)
     {
-        VulkanDrawableCollection& collection = pair.second;
+        const VulkanDrawableCategory& category = categoryCollection.first;
+        VulkanDrawableCollection& collection = categoryCollection.second;
+        
+        const auto& collectionAttributes = collection.sources[0]->attributes; // only used for info about attributes, since they are all the same for a collection
+        collection.attributeBuffers.reserve(static_cast<size_t>(Attribute::AttributeType::_COUNT));
 
         // create buffer for indices
         auto bufferUsage = vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst;
         collection.indices.create(_allocator, collection.totalIndexSize, bufferUsage, VMA_MEMORY_USAGE_GPU_ONLY);
         indexStagingBuffer.create(_allocator, collection.totalIndexSize, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY);
 
-        size_t size = 0;
-
-        // all the primitives in a collection have the same vertex attribute format
-        for (const auto& attribute : collection.sources[0]->attributes) // for each attribute type allocate the appropriate buffer
+        int attributeCounter = 0;
+        for (uint8_t i = 0; i < static_cast<uint8_t>(Attribute::AttributeType::_COUNT); i++)
         {
-            switch (attribute->type)
+            if (category.vertexAttributeCategory & (1 << i))
             {
-            case Attribute::AttributeType::POSITION:
-                size = collection.totalVertexCount * (attribute->components + attribute->padding) * attribute->componentSize;
+                size_t size = collection.totalVertexCount * (collectionAttributes[attributeCounter]->components + collectionAttributes[attributeCounter]->padding) * collectionAttributes[attributeCounter]->componentSize;
+
                 bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eShaderDeviceAddress;
-                collection.positions.create(_allocator, size, bufferUsage, VMA_MEMORY_USAGE_GPU_ONLY);
-                positionStagingBuffer.create(_allocator, size, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY);
-                break;
-            case Attribute::AttributeType::COLOR:
-                size = collection.totalVertexCount * (attribute->components + attribute->padding) * attribute->componentSize;
-                bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eShaderDeviceAddress;
-                collection.colors.create(_allocator, size, bufferUsage, VMA_MEMORY_USAGE_GPU_ONLY);
-                colorStagingBuffer.create(_allocator, size, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY);
-                break;
-            default:
-                break;
+
+                collection.attributeBuffers.push_back(VulkanBuffer());
+                collection.attributeBuffers[attributeCounter].create(_allocator, size, bufferUsage, VMA_MEMORY_USAGE_GPU_ONLY);
+
+                stagingBuffers.push_back(VulkanBuffer());
+                stagingBuffers[attributeCounter].create(_allocator, size, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY);
+
+                attributeCounter++;
             }
         }
 
-        void* data = nullptr;
         int indexOffset = 0;
         int vertexOffset = 0;
-
-        size_t indexSize = sizeof(collection.sources[0]->indices[0]);
 
         // copy data to staging buffers
         for (int i = 0; i < collection.sources.size(); i++)
         {
-            data = indexStagingBuffer.allocation->GetMappedData();
-            memcpy(reinterpret_cast<uint8_t*>(data) + (indexOffset * indexSize), collection.sources[i]->indices.data(), collection.drawables[i].indexCount * indexSize);
+            void* data = indexStagingBuffer.allocation->GetMappedData();
+            memcpy(reinterpret_cast<uint8_t*>(data) + (indexOffset * sizeof(collection.sources[i]->indices[0])),
+                collection.sources[i]->indices.data(),
+                collection.sources[i]->indices.size() * sizeof(collection.sources[i]->indices[0])
+            );
 
-            for (const auto& attribute : collection.sources[i]->attributes)
+            for (uint8_t j = 0; j < stagingBuffers.size(); j++)
             {
-                switch (attribute->type)
-                {
-                case Attribute::AttributeType::POSITION:
-                    data = positionStagingBuffer.allocation->GetMappedData();
-                    memcpy(reinterpret_cast<uint8_t*>(data) + (vertexOffset * (attribute->components + attribute->padding) * attribute->componentSize), attribute->data.data(), attribute->count * (attribute->components + attribute->padding) * attribute->componentSize);
-                    break;
-                case Attribute::AttributeType::COLOR:
-                    data = colorStagingBuffer.allocation->GetMappedData();
-                    memcpy(reinterpret_cast<uint8_t*>(data) + (vertexOffset * (attribute->components + attribute->padding) * attribute->componentSize), attribute->data.data(), attribute->count * (attribute->components + attribute->padding) * attribute->componentSize);
-                    break;
-                default:
-                    break;
-                }
+                data = stagingBuffers[j].allocation->GetMappedData();
+                memcpy(
+                    reinterpret_cast<uint8_t*>(data) + (vertexOffset * (collectionAttributes[j]->components + collectionAttributes[j]->padding) * collectionAttributes[j]->componentSize),
+                    collection.sources[i]->attributes[j]->data.data(),
+                    collection.sources[i]->attributes[j]->count * (collectionAttributes[j]->components + collectionAttributes[j]->padding) * collectionAttributes[j]->componentSize
+                );
             }
 
             indexOffset += collection.drawables[i].indexCount;
@@ -247,24 +208,10 @@ void VulkanScene::loadSceneToGPUMemory(std::shared_ptr<Scene> scene, vk::RenderP
 
         commandBuffer.copyBuffer(indexStagingBuffer.buffer, collection.indices.buffer, 1, &indexCopyRegion);
 
-        vk::BufferCopy positionCopyRegion = {};
-        vk::BufferCopy colorCopyRegion = {};
-
-        for (const auto& attribute : collection.sources[0]->attributes) // for each attribute type, not every actual attribute of every primitive
+        for (uint8_t i = 0; i < collection.attributeBuffers.size(); i++)
         {
-            switch (attribute->type)
-            {
-            case Attribute::AttributeType::POSITION:
-                positionCopyRegion.size = collection.positions.info.size;
-                commandBuffer.copyBuffer(positionStagingBuffer.buffer, collection.positions.buffer, 1, &positionCopyRegion);
-                break;
-            case Attribute::AttributeType::COLOR:
-                colorCopyRegion.size = collection.positions.info.size;
-                commandBuffer.copyBuffer(colorStagingBuffer.buffer, collection.colors.buffer, 1, &colorCopyRegion);
-                break;
-            default:
-                break;
-            }
+            stagingBufferCopyRegions.emplace_back(vk::BufferCopy(0, 0, collection.attributeBuffers[i].info.size));
+            commandBuffer.copyBuffer(stagingBuffers[i].buffer, collection.attributeBuffers[i].buffer, 1, &stagingBufferCopyRegions[i]);
         }
 
         commandBuffer.end();
@@ -279,11 +226,6 @@ void VulkanScene::loadSceneToGPUMemory(std::shared_ptr<Scene> scene, vk::RenderP
 
         _device.freeCommandBuffers(_commandPool, 1, &commandBuffer);
     }
-
-    createCollectionPipelines(renderPass, swapchain);
-    createCollectionCommandBuffers(framesInFlight);
-
-    // also make sure to add the offset to all the indices in the primitives (startingIndex)
 
     // all the combined vertices of all primitives are divided into streams for each attribute
     // and the shader gets, as a push constant, all the addresses to the buffers (every shader gets every
@@ -442,12 +384,11 @@ std::vector<vk::CommandBuffer> VulkanScene::recordFrameCommandBuffers(unsigned i
     {
         vk::BufferDeviceAddressInfo deviceAddressInfo = {};
         deviceAddressInfo.sType = vk::StructureType::eBufferDeviceAddressInfo;
-        deviceAddressInfo.buffer = pair.second.positions.buffer;
+        deviceAddressInfo.buffer = pair.second.attributeBuffers[0].buffer;
 
         constants.positionsAddress = _device.getBufferAddress(deviceAddressInfo);
 
-        deviceAddressInfo.buffer = pair.second.colors.buffer;
-
+        //deviceAddressInfo.buffer = pair.second.attributeBuffers[2].buffer;
         //constants.colorsAddress = _device.getBufferAddress(deviceAddressInfo);
 
         vk::CommandBuffer& buffer = pair.second.commandBuffers[frame];
@@ -473,7 +414,6 @@ std::vector<vk::CommandBuffer> VulkanScene::recordFrameCommandBuffers(unsigned i
         buffer.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
 
         buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pair.second.graphicsPipeline);
-
 
         vk::DeviceSize offsets[] = { 0 };
         buffer.bindIndexBuffer(pair.second.indices.buffer, offsets[0], vk::IndexType::eUint32);

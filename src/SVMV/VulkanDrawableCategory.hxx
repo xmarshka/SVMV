@@ -6,7 +6,7 @@ namespace SVMV
     {
         enum class ShaderCategory
         {
-            FLAT
+            FLAT, _COUNT
         };
 
         ShaderCategory shaderCategory;

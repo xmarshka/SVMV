@@ -18,6 +18,7 @@
 #include <SVMV/VulkanShader.hxx>
 
 #include <vector>
+#include <array>
 #include <unordered_map>
 
 #define VULKAN_SCENE_ATTRIBUTE_POSITION_SIZE 3 * 4
@@ -56,12 +57,11 @@ namespace SVMV
         std::vector<vk::CommandBuffer> recordFrameCommandBuffers(unsigned int frame, vk::Framebuffer framebuffer, const unsigned int viewportWidth, const unsigned int viewportHeight);
     
     private:
-        void loadSceneToGPUMemory(std::shared_ptr<Scene> scene, vk::RenderPass renderPass, vkb::Swapchain swapchain, unsigned int framesInFlight);
+        void divideSceneIntoCategories(std::shared_ptr<Scene> scene, std::shared_ptr<Node> rootNode);
+        void loadSceneToGPUMemory(std::shared_ptr<Scene> scene, vkb::Swapchain swapchain, unsigned int framesInFlight);
         void createCollectionPipelines(vk::RenderPass renderPass, vkb::Swapchain swapchain);
         void createCollectionCommandBuffers(unsigned int framesInFlight);
 
-        void divideSceneIntoCategories(std::shared_ptr<Scene> scene, std::shared_ptr<Node> rootNode);
-        void getCollectionSizes();
         unsigned char getVertexAttributeCategory(const std::shared_ptr<Primitive> primitive);
     };
 }

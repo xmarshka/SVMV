@@ -25,9 +25,8 @@ namespace SVMV
         size_t totalIndexSize = 0;
 
         VulkanBuffer indices;
-        VulkanBuffer positions;
-        VulkanBuffer colors;
-        VulkanBuffer normals;
+        
+        std::vector<VulkanBuffer> attributeBuffers;
 
         std::shared_ptr<VulkanMaterial> material;
 
