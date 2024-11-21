@@ -4,26 +4,30 @@
 
 layout(location = 0) out vec4 outColor;
 
-layout(buffer_reference, std430) readonly buffer PositionBuffer {
-    vec3 positions[];
+struct Vertex
+{
+    vec3 position;
+    float texcoordX;
+    vec3 normal;
+    float texcoordY;
+    vec4 tangent;
+    vec4 color;
 };
 
-layout(buffer_reference, std430) readonly buffer ColorBuffer {
-    vec4 colors[];
+layout(buffer_reference, std430) readonly buffer VertexBuffer {
+    Vertex vertices[];
 };
 
 layout(push_constant) uniform constants {
     mat4 mvp;
-    PositionBuffer positionBuffer;
-    ColorBuffer colorBuffer;
+    VertexBuffer vertexBuffer;
 } PushConstants;
 
 void main() {
-    vec3 position = vec3(PushConstants.positionBuffer.positions[gl_VertexIndex].x, PushConstants.positionBuffer.positions[gl_VertexIndex].y, PushConstants.positionBuffer.positions[gl_VertexIndex].z);
+    vec3 position = PushConstants.vertexBuffer.vertices[gl_VertexIndex].position;
 
     gl_Position = PushConstants.mvp * vec4(position, 1.0);
     gl_Position = gl_Position * vec4(1.0, -1.0, 1.0, 1.0);
 
-    //outColor = PushConstants.colorBuffer.colors[gl_VertexIndex];
     outColor = vec4(0.8, 0.7, 0.6, 1.0);
 }

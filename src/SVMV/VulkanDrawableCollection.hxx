@@ -3,6 +3,7 @@
 #include <vulkan/vulkan.hpp>
 
 #include <SVMV/VulkanBuffer.hxx>
+#include <SVMV/VulkanMaterial.hxx>
 
 #include <vector>
 #include <memory>
@@ -12,7 +13,7 @@ namespace SVMV
 {
     class Primitive;
 
-    class VulkanDrawable;
+    struct VulkanDrawable;
     class VulkanMaterial;
 
     struct VulkanDrawableCollection
@@ -24,14 +25,10 @@ namespace SVMV
         size_t totalIndexCount = 0;
         size_t totalIndexSize = 0;
 
-        VulkanBuffer indices;
-        
-        std::vector<VulkanBuffer> attributeBuffers;
+        VulkanBuffer indexBuffer;
+        VulkanBuffer vertexBuffer;
 
-        std::shared_ptr<VulkanMaterial> material;
-
-        vk::PipelineLayout layout;
-        vk::Pipeline graphicsPipeline;
+        MaterialPipeline materialPipeline;
 
         std::vector<vk::CommandBuffer> commandBuffers;
     };

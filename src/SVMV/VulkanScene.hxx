@@ -13,28 +13,21 @@
 #include <SVMV/Primitive.hxx>
 #include <SVMV/Attribute.hxx>
 #include <SVMV/VulkanDrawableCollection.hxx>
-#include <SVMV/VulkanDrawableCategory.hxx>
 #include <SVMV/VulkanDrawable.hxx>
 #include <SVMV/VulkanShader.hxx>
+#include <SVMV/VulkanShaderStructures.hxx>
+#include <SVMV/VulkanVertex.hxx>
+#include <SVMV/VulkanBuffer.hxx>
+#include <SVMV/VulkanMaterial.hxx>
 
 #include <vector>
 #include <array>
 #include <unordered_map>
 
-#define VULKAN_SCENE_ATTRIBUTE_POSITION_SIZE 3 * 4
-
 namespace SVMV
 {
     class VulkanScene
     {
-    public:
-        struct PushConstants
-        {
-            glm::mat4 mvpMatrix;
-            vk::DeviceAddress positionsAddress;
-            vk::DeviceAddress colorsAddress;
-        };
-
     private:
         vk::Device _device;
         vk::RenderPass _renderPass;
@@ -45,7 +38,7 @@ namespace SVMV
         vk::Queue _queue;
         VmaAllocator _allocator;
 
-        std::unordered_map<VulkanDrawableCategory, VulkanDrawableCollection> _collectionMap;
+        std::unordered_map<MaterialName, VulkanDrawableCollection> _collectionMap;
 
     public:
         VulkanScene();
@@ -59,7 +52,8 @@ namespace SVMV
     private:
         void divideSceneIntoCategories(std::shared_ptr<Scene> scene, std::shared_ptr<Node> rootNode);
         void loadSceneToGPUMemory(std::shared_ptr<Scene> scene, vkb::Swapchain swapchain, unsigned int framesInFlight);
-        void createCollectionPipelines(vk::RenderPass renderPass, vkb::Swapchain swapchain);
+        void loadCollectionVerticesToBuffer(VulkanDrawableCollection& collection, VulkanBuffer& stagingBuffer);
+
         void createCollectionCommandBuffers(unsigned int framesInFlight);
 
         unsigned char getVertexAttributeCategory(const std::shared_ptr<Primitive> primitive);

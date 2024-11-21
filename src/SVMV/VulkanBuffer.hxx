@@ -3,6 +3,8 @@
 #include <vulkan/vulkan.hpp>
 #include <vk_mem_alloc.h>
 
+#include <memory>
+
 namespace SVMV
 {
     class VulkanBuffer
@@ -17,7 +19,7 @@ namespace SVMV
     public:
         VulkanBuffer();
         void create(VmaAllocator vmaAllocator, size_t bufferSize, vk::Flags<vk::BufferUsageFlagBits> bufferUsage, VmaMemoryUsage vmaMemoryUsage);
-        ~VulkanBuffer();
+        void free();
 
         operator bool() const;
     };

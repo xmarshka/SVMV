@@ -1,6 +1,6 @@
 #pragma once
 
-#include <SVMV/Attribute.hxx>
+#include <glm/glm.hpp>
 
 #include <vector>
 #include <memory>
@@ -13,11 +13,13 @@ namespace SVMV
     class Primitive
     {
     public:
-        std::vector<std::shared_ptr<Attribute>> attributes;
+        std::vector<glm::fvec3> positions;
+        std::vector<glm::fvec3> normals;
+        std::vector<glm::fvec4> tangens;
+        std::vector<glm::fvec2> texcoords_0;
+        std::vector<glm::fvec4> colors_0;
+
         std::vector<uint32_t> indices;
         std::shared_ptr<Material> material;
-
-    public:
-        std::shared_ptr<Attribute> getAttribute(Attribute::AttributeType type);
     };
 }
