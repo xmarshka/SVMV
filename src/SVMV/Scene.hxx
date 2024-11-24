@@ -12,7 +12,6 @@ namespace SVMV
     class Scene
     {
     public:
-
         std::shared_ptr<Node> root;
 
         std::vector<std::shared_ptr<Mesh>> meshes;

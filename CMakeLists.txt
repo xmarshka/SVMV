@@ -9,12 +9,10 @@ set(SRC_DIR ${CMAKE_CURRENT_LIST_DIR}/src/${PROJECT_NAME})
 
 set(SVMV_INCLUDES
 	${SRC_DIR}/Application.hxx
-	${SRC_DIR}/VulkanEngine.hxx
 	${SRC_DIR}/VulkanRenderer.hxx
 	${SRC_DIR}/VulkanShader.hxx
 	${SRC_DIR}/VulkanScene.hxx
 	${SRC_DIR}/VulkanDrawableCollection.hxx
-	${SRC_DIR}/VulkanDrawableCategory.hxx
 	${SRC_DIR}/VulkanDrawable.hxx
 	${SRC_DIR}/VulkanPipeline.hxx
 	${SRC_DIR}/VulkanDescriptorAllocator.hxx
@@ -24,39 +22,30 @@ set(SVMV_INCLUDES
 	${SRC_DIR}/VulkanMaterial.hxx
 	${SRC_DIR}/VulkanShaderStructures.hxx
 	${SRC_DIR}/VulkanGLTFPBRMaterial.hxx
+	${SRC_DIR}/VulkanUtilities.hxx
 	${SRC_DIR}/Loader.hxx
 	${SRC_DIR}/Scene.hxx
 	${SRC_DIR}/Node.hxx
 	${SRC_DIR}/Mesh.hxx
 	${SRC_DIR}/Primitive.hxx
-	${SRC_DIR}/Attribute.hxx
 	${SRC_DIR}/Material.hxx
 	${SRC_DIR}/Texture.hxx)
 
 set(SVMV_SOURCES
 	${SRC_DIR}/main.cxx
+	${SRC_DIR}/VmaUsage.cxx
 	${SRC_DIR}/Application.cxx
-	${SRC_DIR}/VulkanEngine.cxx
 	${SRC_DIR}/VulkanRenderer.cxx
 	${SRC_DIR}/VulkanShader.cxx
 	${SRC_DIR}/VulkanScene.cxx
 	${SRC_DIR}/VulkanDrawableCollection.cxx
-	${SRC_DIR}/VulkanDrawableCategory.cxx
-	${SRC_DIR}/VulkanDrawable.cxx
 	${SRC_DIR}/VulkanPipeline.cxx
 	${SRC_DIR}/VulkanDescriptorAllocator.cxx
 	${SRC_DIR}/VulkanBuffer.cxx
 	${SRC_DIR}/VulkanImage.cxx
-	${SRC_DIR}/VulkanMaterial.cxx
 	${SRC_DIR}/VulkanGLTFPBRMaterial.cxx
-	${SRC_DIR}/Loader.cxx
-	${SRC_DIR}/Scene.cxx
-	${SRC_DIR}/Node.cxx
-	${SRC_DIR}/Mesh.cxx
-	${SRC_DIR}/Primitive.cxx
-	${SRC_DIR}/Attribute.cxx
-	${SRC_DIR}/Material.cxx
-	${SRC_DIR}/VmaUsage.cxx)
+	${SRC_DIR}/VulkanUtilities.cxx
+	${SRC_DIR}/Loader.cxx)
 
 find_package(Vulkan REQUIRED COMPONENTS shaderc_combined)
 find_package(VulkanMemoryAllocator CONFIG REQUIRED)

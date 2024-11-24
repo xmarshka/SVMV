@@ -218,11 +218,11 @@ void Loader::details::processPrimitive(std::shared_ptr<Node> node, const tinyglt
         tinygltf::Accessor gltfAttribute = gltfModel->accessors[gltfPrimitive.attributes.at("TANGENT")]; // TODO: make sure the index here isn't -1?
         tinygltf::BufferView gltfBufferView = gltfModel->bufferViews[gltfAttribute.bufferView];
 
-        primitive->tangens.resize(gltfAttribute.count);
+        primitive->tangents.resize(gltfAttribute.count);
 
         // normals in gltf models are always floats in vec3s
         float* data = reinterpret_cast<float*>(gltfModel->buffers[gltfBufferView.buffer].data.data() + gltfAttribute.byteOffset + gltfBufferView.byteOffset);
-        float* attributeData = reinterpret_cast<float*>(primitive->tangens.data());
+        float* attributeData = reinterpret_cast<float*>(primitive->tangents.data());
 
         copyAccessorToDestination<float>(data, attributeData, gltfAttribute.count, 4, gltfBufferView.byteStride);
     }

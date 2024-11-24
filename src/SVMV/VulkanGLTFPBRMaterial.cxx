@@ -1,5 +1,4 @@
 #include <SVMV/VulkanGLTFPBRMaterial.hxx>
-
 #include <vk_mem_alloc.h>
 
 using namespace SVMV;
@@ -12,8 +11,19 @@ void GLTFPBRMaterial::initialize(vk::Device device, VmaAllocator allocator, vk::
     generatePipeline(device, renderPass, swapchain);
 }
 
-GLTFPBRMaterial::~GLTFPBRMaterial()
+void GLTFPBRMaterial::free()
 {
+    _device.destroyPipelineLayout(_pipelineLayout);
+    _device.destroyPipeline(_pipeline);
+
+    _device.destroyDescriptorSetLayout(_layout);
+
+    for (const auto& resource : _resources)
+    {
+        resource.buffer->free();
+        resource.colorImage->free();
+        _device.destroySampler(resource.colorSampler);
+    }
 }
 
 void GLTFPBRMaterial::generatePipeline(vk::Device device, vk::RenderPass renderPass, vkb::Swapchain swapchain)
@@ -148,7 +158,7 @@ void GLTFPBRMaterial::generatePipeline(vk::Device device, vk::RenderPass renderP
     _pipeline = result.value;
 }
 
-std::shared_ptr<MaterialInstance> GLTFPBRMaterial::generateMaterialInstance(std::shared_ptr<Material> material, VulkanDescriptorAllocator& descriptorAllocator, vk::CommandBuffer commandBuffer, vk::Queue queue)
+std::shared_ptr<MaterialInstance> GLTFPBRMaterial::generateMaterialInstance(std::shared_ptr<Material> material, VulkanDescriptorAllocator& descriptorAllocator)
 {
     std::shared_ptr<MaterialInstance> instance = std::make_shared<MaterialInstance>();
     instance->materialName = MaterialName::GLTFPBR;
@@ -162,7 +172,10 @@ std::shared_ptr<MaterialInstance> GLTFPBRMaterial::generateMaterialInstance(std:
     auto bufferUsage = vk::BufferUsageFlagBits::eUniformBuffer;
     resources.buffer = std::make_shared<VulkanBuffer>();
     resources.buffer->create(_memoryAllocator, sizeof(MaterialUniformParameters), bufferUsage, VMA_MEMORY_USAGE_CPU_TO_GPU);
-    MaterialUniformParameters* data = reinterpret_cast<MaterialUniformParameters*>(resources.buffer->allocation->GetMappedData());
+
+    void* mappedData = nullptr;
+    vmaMapMemory(_memoryAllocator, resources.buffer->allocation, &mappedData);
+    MaterialUniformParameters* data = reinterpret_cast<MaterialUniformParameters*>(mappedData);
 
     data->baseColorFactor = material->baseColorFactor;
     data->roughnessMetallicFactors[0] = material->metallicFactor;
@@ -170,8 +183,8 @@ std::shared_ptr<MaterialInstance> GLTFPBRMaterial::generateMaterialInstance(std:
 
     auto imageUsage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst;
     resources.colorImage = std::make_shared<VulkanImage>();
-    resources.colorImage->create(_device, _memoryAllocator, material->diffuseTexture->width, material->diffuseTexture->height, vk::Format::eR8G8B8A8Srgb, imageUsage);
-    resources.colorImage->copyDataToImage(material->diffuseTexture->data.data(), material->diffuseTexture->data.size(), commandBuffer, queue);
+    resources.colorImage->create(_device, _memoryAllocator, material->diffuseTexture->width, material->diffuseTexture->height, vk::Format::eR8G8B8A8Srgb, imageUsage, _immediateSubmit);
+    resources.colorImage->copyDataToImage(material->diffuseTexture->data.data(), material->diffuseTexture->data.size());
 
     vk::SamplerCreateInfo samplerCreateInfo = {};
     samplerCreateInfo.sType = vk::StructureType::eSamplerCreateInfo;
@@ -212,4 +225,13 @@ std::shared_ptr<MaterialInstance> GLTFPBRMaterial::generateMaterialInstance(std:
     _resources.push_back(resources);
     
     return instance;
+}
+
+MaterialPipeline SVMV::GLTFPBRMaterial::getMaterialPipeline()
+{
+    MaterialPipeline pipeline;
+    pipeline.layout = _pipelineLayout;
+    pipeline.pipeline = _pipeline;
+
+    return pipeline;
 }

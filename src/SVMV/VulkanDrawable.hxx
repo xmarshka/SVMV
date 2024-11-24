@@ -1,5 +1,6 @@
 #pragma once
 
+#include <vulkan/vulkan.hpp>
 #include <glm/glm.hpp>
 
 #include <cstdint>
@@ -11,16 +12,22 @@ namespace SVMV
 
     struct VulkanDrawable
     {
+        struct AttributeAddresses
+        {
+            vk::DeviceAddress positions;
+            vk::DeviceAddress normals;
+            vk::DeviceAddress tangents;
+            vk::DeviceAddress texcoords_0;
+            vk::DeviceAddress colors_0;
+        };
+
         uint32_t firstIndex;
         uint32_t indexCount;
 
-        uint32_t vertexCount;
+        AttributeAddresses addresses;
 
         glm::mat4 modelMatrix;
 
         std::shared_ptr<MaterialInstance> materialInstance;
-
-        VulkanDrawable() : modelMatrix(1.0f), firstIndex(0), indexCount(0), vertexCount(0) {}
-        VulkanDrawable(glm::mat4 matrix) : modelMatrix(matrix), firstIndex(0), indexCount(0), vertexCount(0) {}
     };
 }

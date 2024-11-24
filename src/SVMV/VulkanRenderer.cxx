@@ -55,8 +55,8 @@ void VulkanRenderer::initializeRenderer(vk::SurfaceKHR surface)
 
 void VulkanRenderer::loadScene(std::shared_ptr<Scene> scene)
 {
-    _scene = std::make_shared<VulkanScene>(_physicalDevice, _instance, _device, _commandPool, _graphicsQueue);
-    _scene->setScene(scene, _renderPass, _bootstrapSwapchain, _framesInFlight);
+    _scene.initialize(_physicalDevice, _instance, _device, _commandPool, _graphicsQueue, _graphicsQueueFamily);
+    _scene.setScene(scene, _renderPass, _bootstrapSwapchain, _framesInFlight);
 }
 
 void VulkanRenderer::draw()
@@ -80,7 +80,7 @@ void VulkanRenderer::draw()
 
     unsigned imageIndex = result.value;
 
-    auto vector = _scene->recordFrameCommandBuffers(_activeFrame, _framebuffers[imageIndex], _bootstrapSwapchain.extent.width, _bootstrapSwapchain.extent.height);
+    auto vector = _scene.recordFrameCommandBuffers(_activeFrame, _framebuffers[imageIndex], _bootstrapSwapchain.extent.width, _bootstrapSwapchain.extent.height);
 
     vk::SubmitInfo submitInfo = {};
     submitInfo.sType = vk::StructureType::eSubmitInfo;
@@ -129,7 +129,7 @@ void VulkanRenderer::draw()
 
 void VulkanRenderer::cleanup()
 {
-    _scene.reset();
+    _scene.free();
 
     for (int i = 0; i < _framesInFlight; i++)
     {

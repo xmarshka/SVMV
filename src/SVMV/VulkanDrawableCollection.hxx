@@ -12,24 +12,33 @@
 namespace SVMV
 {
     class Primitive;
-
     struct VulkanDrawable;
-    class VulkanMaterial;
 
     struct VulkanDrawableCollection
     {
-        std::vector<std::shared_ptr<Primitive>> sources;
+        struct AttributeBuffer
+        {
+            size_t count;
+
+            VulkanBuffer buffer;
+            vk::DeviceAddress bufferAddress;
+
+            VulkanBuffer stagingBuffer;
+            size_t dataOffset;
+        };
+
         std::vector<VulkanDrawable> drawables;
 
-        size_t totalVertexCount = 0;
-        size_t totalIndexCount = 0;
-        size_t totalIndexSize = 0;
+        AttributeBuffer indices;
 
-        VulkanBuffer indexBuffer;
-        VulkanBuffer vertexBuffer;
+        AttributeBuffer positions;
+        AttributeBuffer normals;
+        AttributeBuffer tangents;
+        AttributeBuffer texcoords_0;
+        AttributeBuffer colors_0;
 
         MaterialPipeline materialPipeline;
 
-        std::vector<vk::CommandBuffer> commandBuffers;
+        std::vector<vk::CommandBuffer> commandBuffers; // TODO: this shouldn't be here (???)
     };
 }

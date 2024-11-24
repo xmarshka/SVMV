@@ -20,13 +20,11 @@ namespace SVMV
 {
     class VulkanRenderer
     {
-        friend class VulkanScene;
-
     public:
         bool resized;
 
     private:
-        std::shared_ptr<VulkanScene> _scene;
+        VulkanScene _scene;
 
         unsigned _framesInFlight;
         unsigned _activeFrame;

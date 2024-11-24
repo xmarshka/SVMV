@@ -1,7 +1,5 @@
 #include <SVMV/VulkanBuffer.hxx>
 
-#include <vk_mem_alloc.h>
-
 using namespace SVMV;
 
 VulkanBuffer::VulkanBuffer() : allocator(nullptr), buffer(nullptr), allocation(nullptr), info()
@@ -34,7 +32,7 @@ void VulkanBuffer::create(VmaAllocator vmaAllocator, size_t bufferSize, vk::Flag
     buffer = temp;
 }
 
-void SVMV::VulkanBuffer::free()
+void VulkanBuffer::free()
 {
     if (buffer != nullptr)
     {

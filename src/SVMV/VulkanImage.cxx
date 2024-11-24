@@ -2,14 +2,15 @@
 
 using namespace SVMV;
 
-VulkanImage::VulkanImage() : device(nullptr), allocator(nullptr), image(nullptr), imageView(nullptr), allocation(nullptr), info()
+VulkanImage::VulkanImage() : _device(nullptr), _allocator(nullptr), image(nullptr), imageView(nullptr), allocation(nullptr), info()
 {
 }
 
-void VulkanImage::create(vk::Device device, VmaAllocator vmaAllocator, unsigned width, unsigned height, vk::Format format, vk::Flags<vk::ImageUsageFlagBits> imageUsage)
+void VulkanImage::create(vk::Device device, VmaAllocator vmaAllocator, unsigned width, unsigned height, vk::Format format, vk::Flags<vk::ImageUsageFlagBits> imageUsage, VulkanUtilities::ImmediateSubmit immediateSubmit)
 {
-    allocator = vmaAllocator;
-    device = device;
+    _allocator = vmaAllocator;
+    _device = device;
+    _immediateSubmit = immediateSubmit;
     extent.width = width;
     extent.height = height;
     extent.depth = 1;
@@ -35,7 +36,7 @@ void VulkanImage::create(vk::Device device, VmaAllocator vmaAllocator, unsigned 
     VkImage temp;
     VkImageCreateInfo temp2 = imageCreateInfo;
 
-    VkResult result = vmaCreateImage(allocator, &temp2, &vmaAllocationInfo, &temp, &allocation, &info);
+    VkResult result = vmaCreateImage(_allocator, &temp2, &vmaAllocationInfo, &temp, &allocation, &info);
 
     if (result != VK_SUCCESS)
     {
@@ -59,7 +60,7 @@ void VulkanImage::create(vk::Device device, VmaAllocator vmaAllocator, unsigned 
     imageView = device.createImageView(imageViewCreateInfo);
 }
 
-void VulkanImage::copyDataToImage(void* data, size_t dataSize, vk::CommandBuffer commandBuffer, vk::Queue queue)
+void VulkanImage::copyDataToImage(void* data, size_t dataSize)
 {
     if (image == nullptr)
     {
@@ -67,11 +68,9 @@ void VulkanImage::copyDataToImage(void* data, size_t dataSize, vk::CommandBuffer
     }
 
     VulkanBuffer stagingBuffer;
-    stagingBuffer.create(allocator, dataSize, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY);
+    stagingBuffer.create(_allocator, dataSize, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY);
 
     memcpy(info.pMappedData, data, dataSize);
-
-    commandBuffer.reset();
     
     vk::ImageMemoryBarrier2 imageBarrier = {};
     imageBarrier.sType = vk::StructureType::eImageMemoryBarrier2;
@@ -95,8 +94,6 @@ void VulkanImage::copyDataToImage(void* data, size_t dataSize, vk::CommandBuffer
     dependencyInfo.imageMemoryBarrierCount = 1;
     dependencyInfo.pImageMemoryBarriers = &imageBarrier;
 
-    commandBuffer.pipelineBarrier2(dependencyInfo);
-
     vk::BufferImageCopy copyRegion = {};
     copyRegion.bufferOffset = 0;
     copyRegion.bufferRowLength = 0;
@@ -108,7 +105,11 @@ void VulkanImage::copyDataToImage(void* data, size_t dataSize, vk::CommandBuffer
     copyRegion.imageSubresource.layerCount = 1;
     copyRegion.imageExtent = extent;
 
-    commandBuffer.copyBufferToImage(stagingBuffer.buffer, image, vk::ImageLayout::eTransferDstOptimal, copyRegion);
+    _immediateSubmit.submit([&](vk::CommandBuffer buffer)
+        {
+            buffer.pipelineBarrier2(dependencyInfo);
+            buffer.copyBufferToImage(stagingBuffer.buffer, image, vk::ImageLayout::eTransferDstOptimal, copyRegion);
+        });
 
     vk::ImageMemoryBarrier2 imageBarrier2 = imageBarrier;
     imageBarrier2.oldLayout = vk::ImageLayout::eTransferDstOptimal;
@@ -116,23 +117,18 @@ void VulkanImage::copyDataToImage(void* data, size_t dataSize, vk::CommandBuffer
 
     dependencyInfo.pImageMemoryBarriers = &imageBarrier2;
 
-    commandBuffer.pipelineBarrier2(dependencyInfo);
-
-    vk::SubmitInfo submitInfo = {};
-    submitInfo.sType = vk::StructureType::eSubmitInfo;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBuffer;
-
-    queue.submit(submitInfo);
-    queue.waitIdle();
+    _immediateSubmit.submit([&](vk::CommandBuffer buffer)
+        {
+            buffer.pipelineBarrier2(dependencyInfo);
+        });
 }
 
 void VulkanImage::free()
 {
     if (image != nullptr)
     {
-        device.destroyImageView(imageView);
-        vmaDestroyImage(allocator, image, allocation);
+        _device.destroyImageView(imageView);
+        vmaDestroyImage(_allocator, image, allocation);
     }
 }
 

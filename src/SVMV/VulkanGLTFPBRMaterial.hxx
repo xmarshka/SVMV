@@ -8,9 +8,9 @@
 #include <SVMV/VulkanBuffer.hxx>
 #include <SVMV/VulkanShader.hxx>
 #include <SVMV/VulkanShaderStructures.hxx>
+#include <SVMV/VulkanUtilities.hxx>
 
 #include <vulkan/vulkan.hpp>
-#include <vk_mem_alloc.h>
 #include <VkBootstrap.h>
 
 #include <glm/glm.hpp>
@@ -25,6 +25,7 @@ namespace SVMV
     private:
         vk::Device _device;
         VmaAllocator _memoryAllocator;
+        VulkanUtilities::ImmediateSubmit _immediateSubmit;
 
         vk::Pipeline _pipeline;
         vk::PipelineLayout _pipelineLayout;
@@ -48,10 +49,14 @@ namespace SVMV
         std::vector<MaterialResources> _resources;
         std::vector<std::shared_ptr<MaterialInstance>> _instances;
 
+    public:
         void initialize(vk::Device device, VmaAllocator allocator, vk::RenderPass renderPass, vkb::Swapchain swapchain);
-        ~GLTFPBRMaterial();
+        void free();
 
+        std::shared_ptr<MaterialInstance> generateMaterialInstance(std::shared_ptr<Material> material, VulkanDescriptorAllocator& descriptorAllocator);
+        MaterialPipeline getMaterialPipeline();
+
+    private:
         void generatePipeline(vk::Device device, vk::RenderPass renderPass, vkb::Swapchain swapchain);
-        std::shared_ptr<MaterialInstance> generateMaterialInstance(std::shared_ptr<Material> material, VulkanDescriptorAllocator& descriptorAllocator, vk::CommandBuffer commandBuffer, vk::Queue queue);
     };
 }

@@ -7,24 +7,19 @@ namespace SVMV
 {
     namespace ShaderStructures
     {
-        struct PushConstants
-        {
-            glm::mat4 mvpMatrix;
-            vk::DeviceAddress vertexBufferAddress;
-        };
-
         struct VertexAttributeAddresses
         {
             vk::DeviceAddress positions;
             vk::DeviceAddress normals;
             vk::DeviceAddress tangents;
-            vk::DeviceAddress texcoords;
-            vk::DeviceAddress colors;
+            vk::DeviceAddress texcoords_0;
+            vk::DeviceAddress colors_0;
         };
 
-        struct MaterialParameters
+        struct PushConstants
         {
-
+            glm::mat4 mvpMatrix;
+            VertexAttributeAddresses addresses;
         };
     }
 }
