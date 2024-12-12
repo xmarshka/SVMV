@@ -5,11 +5,11 @@ using namespace SVMV;
 VulkanRenderer::VulkanRenderer(int width, int height, const std::string& name, unsigned framesInFlight)
     : _framesInFlight(framesInFlight)
 {
-    _instance = _initilization.createInstance(_context, "SVMV", 1, 3);
+    _instance = _initilization.createInstance(_context, name, 1, 3);
     _messenger = _initilization.createDebugMessenger(_instance);
 
-    _window = VulkanUtilities::GLFWwindow(name, width, height, this, (GLFWframebuffersizefun)resized, (GLFWwindowiconifyfun)minimized);
-    _surface = _window.getSurface(_instance);
+    _window = VulkanUtilities::GLFWwindowWrapper(name, width, height, this, (GLFWframebuffersizefun)resized, (GLFWwindowiconifyfun)minimized);
+    _surface = _window.createSurface(_instance);
 
     _physicalDevice = _initilization.createPhysicalDevice(_instance, std::vector<const char*>{ vk::KHRBufferDeviceAddressExtensionName }, _surface);
     _device = _initilization.createDevice(_physicalDevice);
@@ -33,7 +33,7 @@ VulkanRenderer::VulkanRenderer(int width, int height, const std::string& name, u
     _inFlightFences = _initilization.createFences(_device, _framesInFlight);
 
     _descriptorAllocator = VulkanUtilities::DescriptorAllocator(&_device);
-    _vmaAllocator = VulkanUtilities::VmaAllocator(_instance, _physicalDevice, _device);
+    _vmaAllocator = VulkanUtilities::VmaAllocatorWrapper(_instance, _physicalDevice, _device);
     _immediateSubmit = VulkanUtilities::ImmediateSubmit(&_device, &_graphicsQueue, _graphicsQueueIndex);
 }
 

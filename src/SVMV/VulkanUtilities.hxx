@@ -67,47 +67,46 @@ namespace SVMV
             std::vector<std::shared_ptr<vk::raii::DescriptorPool>> _filledPools;
 
             unsigned _setsPerPool{ 8 }; // increased for each new pool, similiar to a vector
-
         };
 
-        class GLFWwindow
+        class GLFWwindowWrapper
         {
         public:
-            GLFWwindow() = default;
-            GLFWwindow(const std::string& name, int width, int height, VulkanRenderer* rendererHandle, GLFWframebuffersizefun resizeCallback, GLFWwindowiconifyfun minimizedCallback);
+            GLFWwindowWrapper() = default;
+            GLFWwindowWrapper(const std::string& name, int width, int height, VulkanRenderer* rendererHandle, GLFWframebuffersizefun resizeCallback, GLFWwindowiconifyfun minimizedCallback);
 
-            GLFWwindow(const GLFWwindow&) = delete;
-            GLFWwindow& operator=(const GLFWwindow&) = delete;
+            GLFWwindowWrapper(const GLFWwindowWrapper&) = delete;
+            GLFWwindowWrapper& operator=(const GLFWwindowWrapper&) = delete;
 
-            GLFWwindow(GLFWwindow&& other) noexcept;
-            GLFWwindow& operator=(GLFWwindow&& other) noexcept;
+            GLFWwindowWrapper(GLFWwindowWrapper&& other) noexcept;
+            GLFWwindowWrapper& operator=(GLFWwindowWrapper&& other) noexcept;
 
-            ~GLFWwindow();
+            ~GLFWwindowWrapper();
 
-            ::GLFWwindow* getWindow() const noexcept;
-            vk::raii::SurfaceKHR getSurface(const vk::raii::Instance& instance) const noexcept;
+            GLFWwindow* getWindow() const noexcept;
+            vk::raii::SurfaceKHR createSurface(const vk::raii::Instance& instance) const noexcept;
         private:
-            ::GLFWwindow* _window{ nullptr };
+            GLFWwindow* _window{ nullptr };
         };
 
-        class VmaAllocator
+        class VmaAllocatorWrapper
         {
         public:
-            VmaAllocator() = default;
-            VmaAllocator(const vk::raii::Instance& instance, const vk::raii::PhysicalDevice& physicalDevice, const vk::raii::Device& device);
+            VmaAllocatorWrapper() = default;
+            VmaAllocatorWrapper(const vk::raii::Instance& instance, const vk::raii::PhysicalDevice& physicalDevice, const vk::raii::Device& device);
 
-            VmaAllocator(const VmaAllocator&) = delete;
-            VmaAllocator& operator=(const VmaAllocator&) = delete;
+            VmaAllocatorWrapper(const VmaAllocatorWrapper&) = delete;
+            VmaAllocatorWrapper& operator=(const VmaAllocatorWrapper&) = delete;
 
-            VmaAllocator(VmaAllocator&& other) noexcept;
-            VmaAllocator& operator=(VmaAllocator&& other) noexcept;
+            VmaAllocatorWrapper(VmaAllocatorWrapper&& other) noexcept;
+            VmaAllocatorWrapper& operator=(VmaAllocatorWrapper&& other) noexcept;
 
-            ~VmaAllocator();
+            ~VmaAllocatorWrapper();
 
-            ::VmaAllocator getAllocator() const noexcept;
+            VmaAllocator getAllocator() const noexcept;
 
         private:
-            ::VmaAllocator _allocator{ nullptr };
+            VmaAllocator _allocator{ nullptr };
         };
     }
 }

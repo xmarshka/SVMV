@@ -1,6 +1,6 @@
 #pragma once
 
-#include <vulkan/vulkan.hpp>
+#include <vulkan/vulkan_raii.hpp>
 #include <shaderc/shaderc.hpp>
 
 #include <fstream>
@@ -13,29 +13,34 @@ namespace SVMV
     public:
         enum class ShaderType
         {
-            UNINITIALIZED, VERTEX, FRAGMENT
+            UNDEFINED, VERTEX, FRAGMENT
         };
 
     public:
-        vk::ShaderModule shader;
-        ShaderType type;
+        VulkanShader() = default;
+        VulkanShader(const vk::raii::Device& device, const shaderc::Compiler& shaderCompiler, ShaderType type, const std::string& file);
 
-    private:
-        vk::Device _device;
-        shaderc::Compiler _shaderCompiler;
+        VulkanShader(const VulkanShader&) = delete;
+        VulkanShader& operator=(const VulkanShader&) = delete;
 
-    public:
-        VulkanShader();
-        VulkanShader(vk::Device device, ShaderType type, const std::string& file);
+        VulkanShader(VulkanShader&& other) noexcept;
+        VulkanShader& operator=(VulkanShader&& other) noexcept;
 
-        ~VulkanShader();
+        ~VulkanShader() = default;
+
+        [[nodiscard]] const vk::raii::ShaderModule& getModule() const noexcept;
+        [[nodiscard]] ShaderType getType() const noexcept;
 
     private:
         std::string readFile(const std::string& file);
 
-        std::vector<uint32_t> compileShader(const std::string& name, const std::string& shaderCode, shaderc_shader_kind shaderKind, bool optimize);
-        void createShaderModule(const std::vector<uint32_t> code);
+        std::vector<uint32_t> compileShader(const shaderc::Compiler& shaderCompiler, const std::string& name, const std::string& shaderCode, shaderc_shader_kind shaderKind, bool optimize);
+        void createShaderModule(const vk::raii::Device& device, const std::vector<uint32_t> code);
 
         shaderc_shader_kind convertShaderType(ShaderType type);
+
+    private:
+        vk::raii::ShaderModule _module{ nullptr };
+        ShaderType _type{ ShaderType::UNDEFINED };
     };
 }

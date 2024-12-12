@@ -16,12 +16,6 @@ Application::~Application()
 
 void Application::initialize(int width, int height, const std::string& name)
 {
-    if (glfwInit() == GLFW_FALSE)
-    {
-        throw std::runtime_error("glfw: failed to initialize glfw");
-    }
-
-    _renderer.initialize(width, height, name, 2);
     _renderer.loadScene(Loader::loadScene(RESOURCE_DIR"/models/shapes.gltf"));
 }
 
@@ -32,7 +26,7 @@ void Application::cleanup()
 
 void Application::loop()
 {
-    while (!glfwWindowShouldClose(_renderer.getWindow().get()))
+    while (!glfwWindowShouldClose(_renderer.getWindow() .get()))
     {
         if (_frozen)
         {

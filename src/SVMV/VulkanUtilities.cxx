@@ -203,8 +203,13 @@ std::shared_ptr<vk::raii::DescriptorPool> VulkanUtilities::DescriptorAllocator::
     return pool;
 }
 
-VulkanUtilities::GLFWwindow::GLFWwindow(const std::string& name, int width, int height, VulkanRenderer* rendererHandle, GLFWframebuffersizefun resizeCallback, GLFWwindowiconifyfun minimizedCallback)
+VulkanUtilities::GLFWwindowWrapper::GLFWwindowWrapper(const std::string& name, int width, int height, VulkanRenderer* rendererHandle, GLFWframebuffersizefun resizeCallback, GLFWwindowiconifyfun minimizedCallback)
 {
+    if (glfwInit() != GLFW_TRUE)
+    {
+        throw std::runtime_error("glfw: failed to initialize glfw");
+    }
+
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     _window = glfwCreateWindow(width, height, name.c_str(), nullptr, nullptr);
     if (_window == nullptr)
@@ -213,18 +218,18 @@ VulkanUtilities::GLFWwindow::GLFWwindow(const std::string& name, int width, int 
     }
 
     glfwSetWindowUserPointer(_window, this);
-    //glfwSetFramebufferSizeCallback(_window, resizeCallback);
-    //glfwSetWindowIconifyCallback(_window, minimizedCallback);
+    glfwSetFramebufferSizeCallback(_window, resizeCallback);
+    glfwSetWindowIconifyCallback(_window, minimizedCallback);
 }
 
-VulkanUtilities::GLFWwindow::GLFWwindow(GLFWwindow&& other) noexcept
+VulkanUtilities::GLFWwindowWrapper::GLFWwindowWrapper(GLFWwindowWrapper&& other) noexcept
 {
     this->_window = other._window;
 
     other._window = nullptr;
 }
 
-VulkanUtilities::GLFWwindow& VulkanUtilities::GLFWwindow::operator=(GLFWwindow&& other) noexcept
+VulkanUtilities::GLFWwindowWrapper& VulkanUtilities::GLFWwindowWrapper::operator=(GLFWwindowWrapper&& other) noexcept
 {
     if (this != &other)
     {
@@ -241,17 +246,17 @@ VulkanUtilities::GLFWwindow& VulkanUtilities::GLFWwindow::operator=(GLFWwindow&&
     return *this;
 }
 
-VulkanUtilities::GLFWwindow::~GLFWwindow()
+VulkanUtilities::GLFWwindowWrapper::~GLFWwindowWrapper()
 {
     glfwDestroyWindow(_window);
 }
 
-::GLFWwindow* VulkanUtilities::GLFWwindow::getWindow() const noexcept
+GLFWwindow* VulkanUtilities::GLFWwindowWrapper::getWindow() const noexcept
 {
     return _window;
 }
 
-vk::raii::SurfaceKHR VulkanUtilities::GLFWwindow::getSurface(const vk::raii::Instance& instance) const noexcept
+vk::raii::SurfaceKHR VulkanUtilities::GLFWwindowWrapper::createSurface(const vk::raii::Instance& instance) const noexcept
 {
     VkSurfaceKHR surface;
     if (glfwCreateWindowSurface(*instance, _window, nullptr, &surface) != VK_SUCCESS)
@@ -262,7 +267,7 @@ vk::raii::SurfaceKHR VulkanUtilities::GLFWwindow::getSurface(const vk::raii::Ins
     return vk::raii::SurfaceKHR(instance, surface);
 }
 
-VulkanUtilities::VmaAllocator::VmaAllocator(const vk::raii::Instance& instance, const vk::raii::PhysicalDevice& physicalDevice, const vk::raii::Device& device)
+VulkanUtilities::VmaAllocatorWrapper::VmaAllocatorWrapper(const vk::raii::Instance& instance, const vk::raii::PhysicalDevice& physicalDevice, const vk::raii::Device& device)
 {
     VmaAllocatorCreateInfo allocatorInfo = {};
     allocatorInfo.instance = *instance;
@@ -278,14 +283,14 @@ VulkanUtilities::VmaAllocator::VmaAllocator(const vk::raii::Instance& instance, 
     }
 }
 
-VulkanUtilities::VmaAllocator::VmaAllocator(VmaAllocator&& other) noexcept
+VulkanUtilities::VmaAllocatorWrapper::VmaAllocatorWrapper(VmaAllocatorWrapper&& other) noexcept
 {
     this->_allocator = other._allocator;
 
     other._allocator = nullptr;
 }
 
-VulkanUtilities::VmaAllocator& SVMV::VulkanUtilities::VmaAllocator::operator=(VmaAllocator&& other) noexcept
+VulkanUtilities::VmaAllocatorWrapper& VulkanUtilities::VmaAllocatorWrapper::operator=(VmaAllocatorWrapper&& other) noexcept
 {
     if (this != &other)
     {
@@ -302,7 +307,7 @@ VulkanUtilities::VmaAllocator& SVMV::VulkanUtilities::VmaAllocator::operator=(Vm
     return *this;
 }
 
-VulkanUtilities::VmaAllocator::~VmaAllocator()
+VulkanUtilities::VmaAllocatorWrapper::~VmaAllocatorWrapper()
 {
     if (_allocator != nullptr)
     {
@@ -310,7 +315,7 @@ VulkanUtilities::VmaAllocator::~VmaAllocator()
     }
 }
 
-VmaAllocator VulkanUtilities::VmaAllocator::getAllocator() const noexcept
+VmaAllocator VulkanUtilities::VmaAllocatorWrapper::getAllocator() const noexcept
 {
     return _allocator;
 }

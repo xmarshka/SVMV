@@ -2,9 +2,9 @@
 
 using namespace SVMV;
 
-VulkanBuffer::VulkanBuffer(vk::raii::Device* device, VmaAllocator vmaAllocator, size_t bufferSize, vk::Flags<vk::BufferUsageFlagBits> bufferUsage, VmaMemoryUsage vmaMemoryUsage) : buffer(nullptr)
+VulkanBuffer::VulkanBuffer(vk::raii::Device* device, VmaAllocator vmaAllocator, size_t bufferSize, vk::Flags<vk::BufferUsageFlagBits> bufferUsage, VmaMemoryUsage vmaMemoryUsage, bool createMapped) : _buffer(nullptr)
 {
-    allocator = vmaAllocator;
+    _allocator = vmaAllocator;
 
     vk::BufferCreateInfo bufferCreateInfo;
     bufferCreateInfo.setSize(bufferSize);
@@ -12,48 +12,49 @@ VulkanBuffer::VulkanBuffer(vk::raii::Device* device, VmaAllocator vmaAllocator, 
 
     VmaAllocationCreateInfo vmaAllocationInfo = {};
     vmaAllocationInfo.usage = vmaMemoryUsage;
-    vmaAllocationInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
+    if (createMapped)
+    {
+        vmaAllocationInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
+    }
 
-    VkBuffer temporaryBuffer;
+    VkBuffer temporaryBuffer = {};
     VkBufferCreateInfo temporaryBufferCreateInfo = bufferCreateInfo;
 
-    VkResult result = vmaCreateBuffer(allocator, &temporaryBufferCreateInfo, &vmaAllocationInfo, &temporaryBuffer, &allocation, nullptr);
+    VkResult result = vmaCreateBuffer(_allocator, &temporaryBufferCreateInfo, &vmaAllocationInfo, &temporaryBuffer, &_allocation, nullptr);
 
     if (result != VK_SUCCESS)
     {
         throw std::runtime_error("vma: failed to create buffer");
     }
 
-    buffer = vk::raii::Buffer(*device, temporaryBuffer);
+    _buffer = vk::raii::Buffer(*device, temporaryBuffer);
 }
 
-VulkanBuffer::VulkanBuffer(VulkanBuffer&& other) : buffer(nullptr)
+VulkanBuffer::VulkanBuffer(VulkanBuffer&& other) : _buffer(nullptr)
 {
-    this->buffer = std::move(other.buffer);
-    this->allocation = other.allocation;
-    this->allocator = other.allocator;
+    this->_buffer = std::move(other._buffer);
+    this->_allocation = other._allocation;
+    this->_allocator = other._allocator;
 
-    other.allocation = nullptr;
-    other.allocator = nullptr;
+    other._allocation = nullptr;
+    other._allocator = nullptr;
 }
 
-VulkanBuffer& SVMV::VulkanBuffer::operator=(VulkanBuffer&& other)
+VulkanBuffer& VulkanBuffer::operator=(VulkanBuffer&& other)
 {
     if (this != &other)
     {
-        if (*buffer != nullptr)
+        if (*_buffer != nullptr)
         {
-            vmaDestroyBuffer(allocator, *buffer, allocation); // NOTE: is this ok with the raii buffer? its destructor is called after...
+            vmaDestroyBuffer(_allocator, *_buffer, _allocation); // NOTE: is this ok with the raii buffer? its destructor is called after...
         }
 
-        this->buffer.clear();
+        this->_buffer = std::move(other._buffer);
+        this->_allocation = other._allocation;
+        this->_allocator = other._allocator;
 
-        this->buffer = std::move(other.buffer);
-        this->allocation = other.allocation;
-        this->allocator = other.allocator;
-
-        other.allocation = nullptr;
-        other.allocator = nullptr;
+        other._allocation = nullptr;
+        other._allocator = nullptr;
     }
 
     return *this;
@@ -61,30 +62,30 @@ VulkanBuffer& SVMV::VulkanBuffer::operator=(VulkanBuffer&& other)
 
 VulkanBuffer::~VulkanBuffer()
 {
-    if (*buffer != nullptr)
+    if (*_buffer != nullptr)
     {
-        vmaDestroyBuffer(allocator, *buffer, allocation); // NOTE: is this ok with the raii buffer? its destructor is called after, idk
+        vmaDestroyBuffer(_allocator, *_buffer, _allocation); // NOTE: is this ok with the raii buffer? its destructor is called after, idk
     }
 }
 
 VulkanBuffer::operator bool() const
 {
-    return *buffer != nullptr;
+    return *_buffer != nullptr;
 }
 
-const vk::raii::Buffer* VulkanBuffer::getBuffer() const
+const vk::raii::Buffer& VulkanBuffer::getBuffer() const
 {
-    return &buffer;
+    return _buffer;
 }
 
 const VmaAllocator VulkanBuffer::getAllocator() const
 {
-    return allocator;
+    return _allocator;
 }
 
 const VmaAllocation VulkanBuffer::getAllocation() const
 {
-    return allocation;
+    return _allocation;
 }
 
 VulkanGPUBuffer::VulkanGPUBuffer(vk::raii::Device* device, VmaAllocator vmaAllocator, size_t bufferSize, vk::Flags<vk::BufferUsageFlagBits> bufferUsage)
@@ -108,11 +109,15 @@ VulkanStagingBuffer::VulkanStagingBuffer(vk::raii::Device* device, VulkanUtiliti
 }
 
 VulkanStagingBuffer::VulkanStagingBuffer(vk::raii::Device* device, const VulkanBuffer& destinationBuffer, VulkanUtilities::ImmediateSubmit* immediateSubmit)
-    : VulkanBuffer(device, destinationBuffer.getAllocator(), destinationBuffer.getAllocation()->GetSize(), vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_TO_GPU)
+    : VulkanBuffer(device, destinationBuffer.getAllocator(), destinationBuffer.getAllocation()->GetSize(), vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_TO_GPU, true)
     , _immediateSubmit(immediateSubmit)
 {
     destinationBuffer.getAllocator();
     _capacity = destinationBuffer.getAllocation()->GetSize();
+
+    VmaAllocationInfo allocationInfo = {};
+    vmaGetAllocationInfo(_allocator, _allocation, &allocationInfo);
+    _mappedData = reinterpret_cast<uint8_t*>(allocationInfo.pMappedData);
 }
 
 VulkanStagingBuffer::VulkanStagingBuffer(VulkanStagingBuffer&& other) noexcept
@@ -144,12 +149,13 @@ VulkanStagingBuffer& VulkanStagingBuffer::operator=(VulkanStagingBuffer&& other)
 
 VulkanStagingBuffer::~VulkanStagingBuffer()
 {
-    vmaUnmapMemory(allocator, allocation);
+    vmaUnmapMemory(_allocator, _allocation);
 }
 
-void VulkanStagingBuffer::pushData()
+void VulkanStagingBuffer::pushData(void* data, size_t size)
 {
-    allocation->GetMappedData();
+    memcpy(_mappedData + _filledSize, data, size);
+    _filledSize += size;
 }
 
 void VulkanStagingBuffer::copyToBuffer(const VulkanBuffer& destination)
@@ -166,6 +172,6 @@ void VulkanStagingBuffer::copyToBuffer(const VulkanBuffer& destination, size_t s
 
     _immediateSubmit->submit([&](vk::CommandBuffer commandBuffer)
         {
-            commandBuffer.copyBuffer(buffer, *destination.getBuffer(), copy);
+            commandBuffer.copyBuffer(_buffer, *destination.getBuffer(), copy);
         });
 }

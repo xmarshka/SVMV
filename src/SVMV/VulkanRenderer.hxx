@@ -34,12 +34,17 @@ namespace SVMV
         ~VulkanRenderer() = default;
 
         void draw();
+
         void loadScene(std::shared_ptr<Scene> scene);
 
         [[nodiscard]] const vk::Device getDevice() const noexcept;
         [[nodiscard]] const GLFWwindow* getWindow() const noexcept;
 
     private:
+        void preprocessScene(std::shared_ptr<Scene> scene); // TODO: generate material contexts and materials that appear in the scene, get attribute sizes and create the buffers in VulkanScene
+        void generateDrawablesFromScene(std::shared_ptr<Scene> scene); // TODO: generate drawables and load mesh data to staging buffers, recursive
+        void copyStagingBuffersToGPUBuffers(); // TODO: in the name
+
         void recreateSwapchain();
         void createRenderPass();
 
@@ -47,7 +52,7 @@ namespace SVMV
         static void minimized(GLFWwindow* window, int minimized);
 
     private:
-        VulkanUtilities::GLFWwindow _window;
+        VulkanUtilities::GLFWwindowWrapper _window;
 
         bool _resized                               { false };
         unsigned _framesInFlight                    { 0 };
@@ -79,7 +84,7 @@ namespace SVMV
         std::vector<vk::raii::Fence> _inFlightFences;
 
         VulkanUtilities::DescriptorAllocator _descriptorAllocator;
-        VulkanUtilities::VmaAllocator _vmaAllocator;
+        VulkanUtilities::VmaAllocatorWrapper _vmaAllocator;
         VulkanUtilities::ImmediateSubmit _immediateSubmit;
 
         VulkanScene _scene;
