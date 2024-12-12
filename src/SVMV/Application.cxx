@@ -2,7 +2,7 @@
 
 using namespace SVMV;
 
-Application::Application(int width, int height, const std::string& name) : _frozen(false)
+Application::Application(int width, int height, const std::string& name)
 {
     initialize(width, height, name);
 
@@ -21,24 +21,18 @@ void Application::initialize(int width, int height, const std::string& name)
         throw std::runtime_error("glfw: failed to initialize glfw");
     }
 
-    _renderer.createInstance();
-    _renderer.initializeRenderer(vk::SurfaceKHR(createGLFWWindowAndSurface(width, height, name)));
-
-    _renderer.loadScene(Loader::loadScene(RESOURCE_DIR"/models/BoxVertexColors.gltf"));
+    _renderer.initialize(width, height, name, 2);
+    _renderer.loadScene(Loader::loadScene(RESOURCE_DIR"/models/shapes.gltf"));
 }
 
 void Application::cleanup()
 {
-    _renderer.cleanup();
-
-    glfwDestroyWindow(_window);
-
     glfwTerminate();
 }
 
 void Application::loop()
 {
-    while (!glfwWindowShouldClose(_window))
+    while (!glfwWindowShouldClose(_renderer.getWindow().get()))
     {
         if (_frozen)
         {
@@ -54,30 +48,10 @@ void Application::loop()
     _renderer.getDevice().waitIdle();
 }
 
-VkSurfaceKHR Application::createGLFWWindowAndSurface(int width, int height, const std::string& name)
-{
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    //glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-    _window = glfwCreateWindow(width, height, name.c_str(), nullptr, nullptr);
-
-    glfwSetWindowUserPointer(_window, this);
-    glfwSetFramebufferSizeCallback(_window, framebufferResized);
-    glfwSetWindowIconifyCallback(_window, minimized);
-
-    VkSurfaceKHR surface;
-
-    if (glfwCreateWindowSurface(_renderer.getInstance(), _window, nullptr, &surface) != VK_SUCCESS)
-    {
-        throw std::runtime_error("glfw: failed to create window surface");
-    }
-
-    return surface;
-}
-
 void Application::framebufferResized(GLFWwindow* window, int width, int height)
 {
     SVMV::Application* application = reinterpret_cast<SVMV::Application*>(glfwGetWindowUserPointer(window));
-    application->_renderer.resized = true;
+    //application->_renderer.resized = true;
 }
 
 void Application::minimized(GLFWwindow* window, int minimized)

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <vulkan/vulkan.hpp>
+#include <vulkan/vulkan_raii.hpp>
 #include <VkBootstrap.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -23,45 +23,56 @@
 #include <vector>
 #include <array>
 #include <unordered_map>
+#include <memory>
 #include <iostream>
 
 namespace SVMV
 {
+    // TODO:    move functionality to VulkanRenderer, change the VulkanScene class to hold GPU memory data (attributes of all primitives and all materials and contexts with drawables)
+    //          create a class to hold all the attribute buffers and accept primitive objects and copy the staging buffers to the GPU buffers
+    //          restructure collections into contexts, have them hold drawables and pipelines
+    //          command buffer recording must happen in VulkanRenderer, VulkanScene should just hold and process data
+    //
+    //          VulkanContext, VulkanVertexAttributes
+
+    // TODO:    also... rewrite VulkanShader...
+
     class VulkanScene
     {
     private:
-        vk::Device _device;
-        vk::RenderPass _renderPass;
-        vk::CommandPool _commandPool;
-        vk::Queue _queue;
+        vk::raii::Device* _device;
+        vk::raii::RenderPass* _renderPass;
+        vk::raii::CommandPool* _commandPool;
+        vk::raii::Queue* _queue;
         unsigned _queueIndex;
 
-        vkb::Swapchain _swapchain;
-
         VmaAllocator _allocator;
-        VulkanDescriptorAllocator _descriptorAllocator;
-        VulkanUtilities::ImmediateSubmit _immediateSubmit;
+        VulkanDescriptorAllocator* _descriptorAllocator;
+        VulkanUtilities::ImmediateSubmit* _immediateSubmit;
 
-        std::unordered_map<MaterialName, VulkanDrawableCollection> _collectionMap;
+        std::unordered_map<MaterialName, std::unique_ptr<VulkanDrawableCollection>> _collectionMap;
         GLTFPBRMaterial _GLTFPBRMaterial;
 
     public:
         VulkanScene();
+        VulkanScene(vk::raii::PhysicalDevice* physicalDevice, vk::raii::Instance* instance, vk::raii::Device* device, vk::raii::CommandPool* commandPool, vk::raii::Queue* queue, unsigned queueIndex);
+        ~VulkanScene();
         
-        void initialize(vk::PhysicalDevice physicalDevice, vk::Instance instance, vk::Device device, vk::CommandPool commandPool, vk::Queue queue, unsigned queueIndex);
+        void initialize(vk::raii::PhysicalDevice* physicalDevice, vk::raii::Instance* instance, vk::raii::Device* device, vk::raii::CommandPool* commandPool, vk::raii::Queue* queue, unsigned queueIndex);
         void free();
 
-        void setScene(std::shared_ptr<Scene> scene, vk::RenderPass renderPass, vkb::Swapchain swapchain, unsigned int framesInFlight);
-        std::vector<vk::CommandBuffer> recordFrameCommandBuffers(unsigned int frame, vk::Framebuffer framebuffer, const unsigned int viewportWidth, const unsigned int viewportHeight);
+        void setScene(std::shared_ptr<Scene> scene, vk::raii::RenderPass* renderPass, const vk::Extent2D& extent, unsigned int framesInFlight);
+        std::vector<vk::CommandBuffer> recordFrameCommandBuffers(unsigned int frame, const vk::raii::Framebuffer& framebuffer, const unsigned int viewportWidth, const unsigned int viewportHeight);
     
     private:
         void createCollectionsFromScene(std::shared_ptr<Scene> scene);
         void createDrawablesFromScene(std::shared_ptr<Scene> scene, std::shared_ptr<Node> rootNode);
-        void loadPrimitiveAttributeDataToBuffer(VulkanDrawableCollection& collection, std::shared_ptr<Primitive> primitive);
-        void copyStagingBufferDataToBuffers(VulkanDrawableCollection& collection);
+        void loadPrimitiveAttributeDataToBuffer(const std::unique_ptr<VulkanDrawableCollection>& collection, std::shared_ptr<Primitive> primitive);
+        void copyStagingBufferDataToBuffers(const std::unique_ptr<VulkanDrawableCollection>& collection);
 
         void copyIndicesData(uint32_t* destination, const std::vector<uint32_t>& attributeVector, size_t& offset);
 
+        // TODO: add 'requires' to templates and check the template values(?)
         template <typename type, typename attributeType, unsigned componentCount>
         void copyAttributeData(type* destination, const std::vector<glm::vec<componentCount, attributeType>>& attributeVector, size_t& offset);
 

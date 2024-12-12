@@ -16,7 +16,7 @@ namespace SVMV
 
     struct VulkanDrawableCollection
     {
-        struct AttributeBuffer
+        struct AttributeBuffer // TODO: make this its own class with methods to handle staging etc. (return a DeviceAddress even maybe)
         {
             size_t count;
 

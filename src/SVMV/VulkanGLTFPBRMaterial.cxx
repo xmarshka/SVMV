@@ -3,33 +3,38 @@
 
 using namespace SVMV;
 
-void GLTFPBRMaterial::initialize(vk::Device device, VmaAllocator allocator, vk::RenderPass renderPass, vkb::Swapchain swapchain)
+GLTFPBRMaterial::GLTFPBRMaterial() : _device(nullptr), _pipeline(nullptr), _pipelineLayout(nullptr), _descriptorSetLayout(nullptr), _memoryAllocator(nullptr)
+{
+}
+
+GLTFPBRMaterial::GLTFPBRMaterial(vk::raii::Device* device, VmaAllocator allocator, const vk::raii::RenderPass& renderPass, const vk::Extent2D& extent, VulkanDescriptorAllocator* descriptorAllocator)
+    : _device(nullptr), _pipeline(nullptr), _pipelineLayout(nullptr), _descriptorSetLayout(nullptr)
+{
+    initialize(device, allocator, renderPass, extent, descriptorAllocator);
+}
+
+GLTFPBRMaterial::~GLTFPBRMaterial()
+{
+    free();
+}
+
+void GLTFPBRMaterial::initialize(vk::raii::Device* device, VmaAllocator allocator, const vk::raii::RenderPass& renderPass, const vk::Extent2D& extent, VulkanDescriptorAllocator* descriptorAllocator)
 {
     _device = device;
     _memoryAllocator = allocator;
+    _descriptorAllocator = descriptorAllocator;
 
-    generatePipeline(device, renderPass, swapchain);
+    generatePipeline(renderPass, extent);
 }
 
 void GLTFPBRMaterial::free()
 {
-    _device.destroyPipelineLayout(_pipelineLayout);
-    _device.destroyPipeline(_pipeline);
-
-    _device.destroyDescriptorSetLayout(_layout);
-
-    for (const auto& resource : _resources)
-    {
-        resource.buffer->free();
-        resource.colorImage->free();
-        _device.destroySampler(resource.colorSampler);
-    }
 }
 
-void GLTFPBRMaterial::generatePipeline(vk::Device device, vk::RenderPass renderPass, vkb::Swapchain swapchain)
+void GLTFPBRMaterial::generatePipeline(const vk::raii::RenderPass& renderPass, const vk::Extent2D& extent)
 {
-    VulkanShader vertexShader(device, VulkanShader::ShaderType::VERTEX, "shader.vert");
-    VulkanShader fragmentShader(device, VulkanShader::ShaderType::FRAGMENT, "shader.frag");
+    VulkanShader vertexShader(*_device, VulkanShader::ShaderType::VERTEX, "shader.vert");
+    VulkanShader fragmentShader(*_device, VulkanShader::ShaderType::FRAGMENT, "shader.frag");
 
     vk::PipelineShaderStageCreateInfo shaderStages[2];
 
@@ -56,14 +61,14 @@ void GLTFPBRMaterial::generatePipeline(vk::Device device, vk::RenderPass renderP
     vk::Viewport viewport;
     viewport.x = 0.0f;
     viewport.y = 0.0f;
-    viewport.width = swapchain.extent.width;
-    viewport.height = swapchain.extent.height;
+    viewport.width = extent.width;
+    viewport.height = extent.height;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
     vk::Rect2D scissor;
     scissor.offset = vk::Offset2D(0, 0);
-    scissor.extent = vk::Extent2D(swapchain.extent.width, swapchain.extent.height);
+    scissor.extent = vk::Extent2D(extent.width, extent.height);
 
     std::vector<vk::DynamicState> dynamicStates = { vk::DynamicState::eViewport, vk::DynamicState::eScissor };
     vk::PipelineDynamicStateCreateInfo dynamicStateInfo = {};
@@ -117,117 +122,113 @@ void GLTFPBRMaterial::generatePipeline(vk::Device device, vk::RenderPass renderP
     bindings[1].descriptorCount = 1;
     bindings[1].descriptorType = vk::DescriptorType::eCombinedImageSampler;
 
-    vk::DescriptorSetLayoutCreateInfo layoutInfo{};
-    layoutInfo.sType = vk::StructureType::eDescriptorSetLayoutCreateInfo;
-    layoutInfo.bindingCount = 2;
-    layoutInfo.pBindings = bindings;
+    vk::DescriptorSetLayoutCreateInfo descriptorSetLayoutInfo{};
+    descriptorSetLayoutInfo.sType = vk::StructureType::eDescriptorSetLayoutCreateInfo;
+    descriptorSetLayoutInfo.bindingCount = 2;
+    descriptorSetLayoutInfo.pBindings = bindings;
 
-    _layout = device.createDescriptorSetLayout(layoutInfo);
+    _descriptorSetLayout = vk::raii::DescriptorSetLayout(*_device, descriptorSetLayoutInfo);
 
     vk::PipelineLayoutCreateInfo pipelineLayoutInfo = {};
     pipelineLayoutInfo.sType = vk::StructureType::ePipelineLayoutCreateInfo;
     pipelineLayoutInfo.pushConstantRangeCount = 1;
     pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
     pipelineLayoutInfo.setLayoutCount = 1;
-    pipelineLayoutInfo.pSetLayouts = &_layout;
+    pipelineLayoutInfo.pSetLayouts = &*_descriptorSetLayout;
 
-    _pipelineLayout = device.createPipelineLayout(pipelineLayoutInfo);
+    _pipelineLayout = vk::raii::PipelineLayout(*_device, pipelineLayoutInfo);
 
-    vk::GraphicsPipelineCreateInfo info = {};
-    info.sType = vk::StructureType::eGraphicsPipelineCreateInfo;
-    info.stageCount = 2;
-    info.pStages = shaderStages;
-    info.pVertexInputState = &vertexInputStateInfo;
-    info.pInputAssemblyState = &assemblyStateInfo;
-    info.pViewportState = &viewportStateInfo;
-    info.pRasterizationState = &rasterizationStateInfo;
-    info.pMultisampleState = &multisamplingInfo;
-    info.pColorBlendState = &colorBlendStateInfo;
-    info.pDynamicState = &dynamicStateInfo;
-    info.layout = _pipelineLayout;
-    info.renderPass = renderPass;
-    info.subpass = 0;
+    vk::GraphicsPipelineCreateInfo pipelineInfo = {};
+    pipelineInfo.sType = vk::StructureType::eGraphicsPipelineCreateInfo;
+    pipelineInfo.stageCount = 2;
+    pipelineInfo.pStages = shaderStages;
+    pipelineInfo.pVertexInputState = &vertexInputStateInfo;
+    pipelineInfo.pInputAssemblyState = &assemblyStateInfo;
+    pipelineInfo.pViewportState = &viewportStateInfo;
+    pipelineInfo.pRasterizationState = &rasterizationStateInfo;
+    pipelineInfo.pMultisampleState = &multisamplingInfo;
+    pipelineInfo.pColorBlendState = &colorBlendStateInfo;
+    pipelineInfo.pDynamicState = &dynamicStateInfo;
+    pipelineInfo.layout = _pipelineLayout;
+    pipelineInfo.renderPass = renderPass;
+    pipelineInfo.subpass = 0;
 
-    auto result = device.createGraphicsPipeline(nullptr, info);
-
-    if (result.result != vk::Result::eSuccess)
-    {
-        throw std::runtime_error("vulkan: failed to create graphics pipeline");
-    }
-
-    _pipeline = result.value;
+    _pipeline = vk::raii::Pipeline(*_device, nullptr, pipelineInfo);
 }
 
-std::shared_ptr<MaterialInstance> GLTFPBRMaterial::generateMaterialInstance(std::shared_ptr<Material> material, VulkanDescriptorAllocator& descriptorAllocator)
+std::shared_ptr<MaterialInstance> GLTFPBRMaterial::generateMaterialInstance(std::shared_ptr<Material> material)
 {
-    std::shared_ptr<MaterialInstance> instance = std::make_shared<MaterialInstance>();
-    instance->materialName = MaterialName::GLTFPBR;
+    //std::shared_ptr<MaterialInstance> instance = std::make_shared<MaterialInstance>();
+    //instance->materialName = MaterialName::GLTFPBR;
 
-    MaterialResources resources;
+    //MaterialResources resources = { .colorSampler = vk::raii::Sampler(nullptr) };
 
-    // get descriptor set form some pool
-    instance->descriptorSet = descriptorAllocator.allocateSet(_layout);
+    //// get descriptor set
+    //instance->descriptorSet = _descriptorAllocator->allocateSet(_descriptorSetLayout);
 
-    // create buffer for uniform data and image for texture
-    auto bufferUsage = vk::BufferUsageFlagBits::eUniformBuffer;
-    resources.buffer = std::make_shared<VulkanBuffer>();
-    resources.buffer->create(_memoryAllocator, sizeof(MaterialUniformParameters), bufferUsage, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    //// create buffer for uniform data and image for texture
+    //auto bufferUsage = vk::BufferUsageFlagBits::eUniformBuffer;
+    //resources.buffer = std::make_shared<VulkanBuffer>();
+    //resources.buffer->create(_device, _memoryAllocator, sizeof(MaterialUniformParameters), bufferUsage, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
-    void* mappedData = nullptr;
-    vmaMapMemory(_memoryAllocator, resources.buffer->allocation, &mappedData);
-    MaterialUniformParameters* data = reinterpret_cast<MaterialUniformParameters*>(mappedData);
+    //void* mappedData = nullptr;
+    //vmaMapMemory(_memoryAllocator, resources.buffer->allocation, &mappedData);
+    //MaterialUniformParameters* data = reinterpret_cast<MaterialUniformParameters*>(mappedData);
 
-    data->baseColorFactor = material->baseColorFactor;
-    data->roughnessMetallicFactors[0] = material->metallicFactor;
-    data->roughnessMetallicFactors[1] = material->roughnessFactor;
+    //data->baseColorFactor = material->baseColorFactor;
+    //data->roughnessMetallicFactors[0] = material->metallicFactor;
+    //data->roughnessMetallicFactors[1] = material->roughnessFactor;
 
-    auto imageUsage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst;
-    resources.colorImage = std::make_shared<VulkanImage>();
-    resources.colorImage->create(_device, _memoryAllocator, material->diffuseTexture->width, material->diffuseTexture->height, vk::Format::eR8G8B8A8Srgb, imageUsage, _immediateSubmit);
-    resources.colorImage->copyDataToImage(material->diffuseTexture->data.data(), material->diffuseTexture->data.size());
+    //auto imageUsage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst;
+    //resources.colorImage = std::make_shared<VulkanImage>();
+    //resources.colorImage->create(_device, _memoryAllocator, material->diffuseTexture->width, material->diffuseTexture->height, vk::Format::eR8G8B8A8Srgb, imageUsage, _immediateSubmit);
+    //resources.colorImage->copyDataToImage(material->diffuseTexture->data.data(), material->diffuseTexture->data.size());
 
-    vk::SamplerCreateInfo samplerCreateInfo = {};
-    samplerCreateInfo.sType = vk::StructureType::eSamplerCreateInfo;
-    samplerCreateInfo.magFilter = vk::Filter::eLinear;
-    samplerCreateInfo.minFilter = vk::Filter::eLinear;
+    //vk::SamplerCreateInfo samplerCreateInfo = {};
+    //samplerCreateInfo.sType = vk::StructureType::eSamplerCreateInfo;
+    //samplerCreateInfo.magFilter = vk::Filter::eLinear;
+    //samplerCreateInfo.minFilter = vk::Filter::eLinear;
 
-    resources.colorSampler = _device.createSampler(samplerCreateInfo);
+    //resources.colorSampler = (*_device).createSampler(samplerCreateInfo);
 
-    // write to the descriptor set
-    vk::DescriptorBufferInfo bufferInfo = {};
-    bufferInfo.buffer = resources.buffer->buffer;
-    bufferInfo.offset = 0;
-    bufferInfo.range = sizeof(MaterialUniformParameters);
+    //// write to the descriptor set
+    //vk::DescriptorBufferInfo bufferInfo = {};
+    //bufferInfo.buffer = resources.buffer->buffer;
+    //bufferInfo.offset = 0;
+    //bufferInfo.range = sizeof(MaterialUniformParameters);
 
-    vk::DescriptorImageInfo imageInfo = {};
-    imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-    imageInfo.imageView = resources.colorImage->imageView;
-    imageInfo.sampler = resources.colorSampler;
+    //vk::DescriptorImageInfo imageInfo = {};
+    //imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+    //imageInfo.imageView = resources.colorImage->imageView;
+    //imageInfo.sampler = resources.colorSampler;
 
-    vk::WriteDescriptorSet writes[2] = {};
+    //vk::WriteDescriptorSet writes[2] = {};
 
-    writes[0].dstBinding = 0;
-    writes[0].dstSet = instance->descriptorSet;
-    writes[0].descriptorCount = 1;
-    writes[0].descriptorType = vk::DescriptorType::eUniformBuffer;
-    writes[0].pBufferInfo = &bufferInfo;
+    //writes[0].dstBinding = 0;
+    //writes[0].dstSet = instance->descriptorSet;
+    //writes[0].descriptorCount = 1;
+    //writes[0].descriptorType = vk::DescriptorType::eUniformBuffer;
+    //writes[0].pBufferInfo = &bufferInfo;
 
-    writes[1].dstBinding = 1;
-    writes[1].dstSet = instance->descriptorSet;
-    writes[1].descriptorCount = 1;
-    writes[1].descriptorType = vk::DescriptorType::eCombinedImageSampler;
-    writes[1].pImageInfo = &imageInfo;
+    //writes[1].dstBinding = 1;
+    //writes[1].dstSet = instance->descriptorSet;
+    //writes[1].descriptorCount = 1;
+    //writes[1].descriptorType = vk::DescriptorType::eCombinedImageSampler;
+    //writes[1].pImageInfo = &imageInfo;
 
-    _device.updateDescriptorSets(writes, 0);
+    //(*_device).updateDescriptorSets(writes, 0);
 
-    // store the instance in this, and return a pointer to it
+    //// store the instance in this, and return a pointer to it
 
-    _resources.push_back(resources);
-    
-    return instance;
+    //_resources.push_back(resources);
+
+    //vmaUnmapMemory(_memoryAllocator, resources.buffer->allocation);
+    //
+    //return instance;
+    return nullptr;
 }
 
-MaterialPipeline SVMV::GLTFPBRMaterial::getMaterialPipeline()
+MaterialPipeline GLTFPBRMaterial::getMaterialPipeline()
 {
     MaterialPipeline pipeline;
     pipeline.layout = _pipelineLayout;

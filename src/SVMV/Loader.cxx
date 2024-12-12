@@ -196,7 +196,7 @@ void Loader::details::processPrimitive(std::shared_ptr<Node> node, const tinyglt
         float* data = reinterpret_cast<float*>(gltfModel->buffers[gltfBufferView.buffer].data.data() + gltfAttribute.byteOffset + gltfBufferView.byteOffset);
         float* attributeData = reinterpret_cast<float*>(primitive->positions.data());
 
-        copyAccessorToDestination<float>(data, attributeData, gltfAttribute.count, 3, gltfBufferView.byteStride);
+        copyAccessorToDestination<float>(data, attributeData, gltfAttribute.count, 4, gltfBufferView.byteStride);
     }
 
     if (gltfPrimitive.attributes.find("NORMAL") != gltfPrimitive.attributes.end()) // TODO: handle special case for when there are no indices
@@ -210,7 +210,7 @@ void Loader::details::processPrimitive(std::shared_ptr<Node> node, const tinyglt
         float* data = reinterpret_cast<float*>(gltfModel->buffers[gltfBufferView.buffer].data.data() + gltfAttribute.byteOffset + gltfBufferView.byteOffset);
         float* attributeData = reinterpret_cast<float*>(primitive->normals.data());
 
-        copyAccessorToDestination<float>(data, attributeData, gltfAttribute.count, 3, gltfBufferView.byteStride);
+        copyAccessorToDestination<float>(data, attributeData, gltfAttribute.count, 4, gltfBufferView.byteStride);
     }
 
     if (gltfPrimitive.attributes.find("TANGENT") != gltfPrimitive.attributes.end()) // TODO: handle special case for when there are no indices

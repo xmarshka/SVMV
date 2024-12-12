@@ -12,9 +12,9 @@ namespace SVMV
     class Material // a GLTF PBR material 
     {
     public:
-        glm::fvec4 baseColorFactor;
-        float metallicFactor;
-        float roughnessFactor;
+        glm::vec4 baseColorFactor{ 1.0f };
+        float metallicFactor{ 0.0f };
+        float roughnessFactor{ 0.0f };
 
         std::shared_ptr<Texture> diffuseTexture;
         std::shared_ptr<Texture> metallicRoughnessTexture;

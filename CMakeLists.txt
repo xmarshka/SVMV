@@ -9,9 +9,11 @@ set(SRC_DIR ${CMAKE_CURRENT_LIST_DIR}/src/${PROJECT_NAME})
 
 set(SVMV_INCLUDES
 	${SRC_DIR}/Application.hxx
+	${SRC_DIR}/VulkanInitialization.hxx
 	${SRC_DIR}/VulkanRenderer.hxx
 	${SRC_DIR}/VulkanShader.hxx
 	${SRC_DIR}/VulkanScene.hxx
+	${SRC_DIR}/VulkanMaterialContext.hxx
 	${SRC_DIR}/VulkanDrawableCollection.hxx
 	${SRC_DIR}/VulkanDrawable.hxx
 	${SRC_DIR}/VulkanPipeline.hxx
@@ -20,6 +22,7 @@ set(SVMV_INCLUDES
 	${SRC_DIR}/VulkanImage.hxx
 	${SRC_DIR}/VulkanVertex.hxx
 	${SRC_DIR}/VulkanMaterial.hxx
+	${SRC_DIR}/VulkanAttributeBuffer.hxx
 	${SRC_DIR}/VulkanShaderStructures.hxx
 	${SRC_DIR}/VulkanGLTFPBRMaterial.hxx
 	${SRC_DIR}/VulkanUtilities.hxx
@@ -35,14 +38,17 @@ set(SVMV_SOURCES
 	${SRC_DIR}/main.cxx
 	${SRC_DIR}/VmaUsage.cxx
 	${SRC_DIR}/Application.cxx
+	${SRC_DIR}/VulkanInitialization.cxx
 	${SRC_DIR}/VulkanRenderer.cxx
 	${SRC_DIR}/VulkanShader.cxx
 	${SRC_DIR}/VulkanScene.cxx
+	${SRC_DIR}/VulkanMaterialContext.cxx
 	${SRC_DIR}/VulkanDrawableCollection.cxx
 	${SRC_DIR}/VulkanPipeline.cxx
 	${SRC_DIR}/VulkanDescriptorAllocator.cxx
 	${SRC_DIR}/VulkanBuffer.cxx
 	${SRC_DIR}/VulkanImage.cxx
+	${SRC_DIR}/VulkanAttributeBuffer.cxx
 	${SRC_DIR}/VulkanGLTFPBRMaterial.cxx
 	${SRC_DIR}/VulkanUtilities.cxx
 	${SRC_DIR}/Loader.cxx)

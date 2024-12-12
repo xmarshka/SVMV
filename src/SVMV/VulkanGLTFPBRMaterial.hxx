@@ -23,14 +23,14 @@ namespace SVMV
     class GLTFPBRMaterial
     {
     private:
-        vk::Device _device;
+        vk::raii::Device* _device;
         VmaAllocator _memoryAllocator;
-        VulkanUtilities::ImmediateSubmit _immediateSubmit;
+        VulkanUtilities::ImmediateSubmit* _immediateSubmit;
+        VulkanDescriptorAllocator* _descriptorAllocator;
 
-        vk::Pipeline _pipeline;
-        vk::PipelineLayout _pipelineLayout;
-
-        vk::DescriptorSetLayout _layout;
+        vk::raii::Pipeline _pipeline;
+        vk::raii::PipelineLayout _pipelineLayout;
+        vk::raii::DescriptorSetLayout _descriptorSetLayout;
 
         struct MaterialUniformParameters
         {
@@ -42,7 +42,7 @@ namespace SVMV
         struct MaterialResources
         {
             std::shared_ptr<VulkanImage> colorImage;
-            vk::Sampler colorSampler;
+            vk::raii::Sampler colorSampler;
             std::shared_ptr<VulkanBuffer> buffer;
         };
 
@@ -50,13 +50,17 @@ namespace SVMV
         std::vector<std::shared_ptr<MaterialInstance>> _instances;
 
     public:
-        void initialize(vk::Device device, VmaAllocator allocator, vk::RenderPass renderPass, vkb::Swapchain swapchain);
+        GLTFPBRMaterial();
+        GLTFPBRMaterial(vk::raii::Device* device, VmaAllocator allocator, const vk::raii::RenderPass& renderPass, const vk::Extent2D& extent, VulkanDescriptorAllocator* descriptorAllocator);
+        ~GLTFPBRMaterial();
+
+        void initialize(vk::raii::Device* device, VmaAllocator allocator, const vk::raii::RenderPass& renderPass, const vk::Extent2D& extent, VulkanDescriptorAllocator* descriptorAllocator);
         void free();
 
-        std::shared_ptr<MaterialInstance> generateMaterialInstance(std::shared_ptr<Material> material, VulkanDescriptorAllocator& descriptorAllocator);
+        std::shared_ptr<MaterialInstance> generateMaterialInstance(std::shared_ptr<Material> material);
         MaterialPipeline getMaterialPipeline();
 
     private:
-        void generatePipeline(vk::Device device, vk::RenderPass renderPass, vkb::Swapchain swapchain);
+        void generatePipeline(const vk::raii::RenderPass& renderPass, const vk::Extent2D& extent);
     };
 }

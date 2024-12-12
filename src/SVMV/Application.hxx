@@ -8,10 +8,9 @@ namespace SVMV
     class Application
     {
     private:
-        GLFWwindow* _window;
         VulkanRenderer _renderer;
 
-        bool _frozen;
+        bool _frozen{ false };
 
     public:
         Application() = delete;
@@ -23,8 +22,6 @@ namespace SVMV
         void initialize(int width, int height, const std::string& name);
         void cleanup();
         void loop();
-
-        VkSurfaceKHR createGLFWWindowAndSurface(int width, int height, const std::string& name);
 
         static void framebufferResized(GLFWwindow* window, int width, int height);
         static void minimized(GLFWwindow* window, int minimized);

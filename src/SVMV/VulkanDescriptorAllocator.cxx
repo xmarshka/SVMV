@@ -2,25 +2,41 @@
 
 using namespace SVMV;
 
-void VulkanDescriptorAllocator::initialize(vk::Device device)
+VulkanDescriptorAllocator::VulkanDescriptorAllocator(vk::raii::Device* device)
 {
     _device = device;
+}
 
-    _setsPerPool = 8; // should be a power of 2
+VulkanDescriptorAllocator::VulkanDescriptorAllocator(VulkanDescriptorAllocator&& other) noexcept
+{
+    this->_device = other._device;
+    this->_availablePools = other._availablePools;
+    this->_filledPools = other._filledPools;
+
+    other._device = nullptr;
+    other._availablePools.clear();
+    other._filledPools.clear();
+}
+
+VulkanDescriptorAllocator& VulkanDescriptorAllocator::operator=(VulkanDescriptorAllocator&& other) noexcept
+{
+    if (this != &other)
+    {
+        this->destroyPools();
+
+        this->_device = other._device;
+        this->_availablePools = other._availablePools;
+        this->_filledPools = other._filledPools;
+
+        other._device = nullptr;
+        other._availablePools.clear();
+        other._filledPools.clear();
+    }
 }
 
 void VulkanDescriptorAllocator::destroyPools()
 {
-    for (const auto& pool : _availablePools)
-    {
-        _device.destroyDescriptorPool(pool);
-    }
     _availablePools.clear();
-
-    for (const auto& pool : _filledPools)
-    {
-        _device.destroyDescriptorPool(pool);
-    }
     _filledPools.clear();
 }
 
@@ -28,50 +44,58 @@ void SVMV::VulkanDescriptorAllocator::clearPools()
 {
     for (const auto& pool : _availablePools)
     {
-        _device.resetDescriptorPool(pool);
+        pool->reset();
     }
 
     for (const auto& pool : _filledPools)
     {
-        _device.resetDescriptorPool(pool);
+        pool->reset();
         _availablePools.push_back(pool);
     }
 
     _filledPools.clear();
 }
 
-vk::DescriptorSet VulkanDescriptorAllocator::allocateSet(vk::DescriptorSetLayout layout)
+vk::raii::DescriptorSet VulkanDescriptorAllocator::allocateSet(const vk::raii::DescriptorSetLayout& layout)
 {
-    vk::DescriptorPool pool = getPool();
+    std::shared_ptr<vk::raii::DescriptorPool> pool = getPool();
 
     vk::DescriptorSetAllocateInfo info = {};
-    info.sType = vk::StructureType::eDescriptorSetAllocateInfo;
-    info.descriptorPool = pool;
-    info.descriptorSetCount = 1;
-    info.pSetLayouts = &layout;
+    info.setDescriptorPool(*pool);
+    info.setDescriptorSetCount(1);
+    info.setSetLayouts(layout);
 
-    vk::DescriptorSet set;
+    vk::raii::DescriptorSets sets(nullptr);
 
-    vk::Result result = _device.allocateDescriptorSets(&info, &set);
-
-    if (result == vk::Result::eErrorOutOfPoolMemory || result == vk::Result::eErrorFragmentedPool)
+    try
     {
-        _filledPools.push_back(pool);
+        sets = vk::raii::DescriptorSets(*_device, info);
+    }
+    catch (const vk::SystemError& e)
+    {
+        if (e.code() == vk::make_error_code(vk::Result::eErrorOutOfPoolMemory) || e.code() == vk::make_error_code(vk::Result::eErrorFragmentedPool))
+        {
+            _filledPools.push_back(pool);
 
-        pool = getPool();
-        info.descriptorPool = pool;
+            pool = getPool();
+            info.descriptorPool = *pool;
 
-        set = _device.allocateDescriptorSets(info)[0];
+            sets = vk::raii::DescriptorSets(*_device, info);
+        }
+        else
+        {
+            throw std::runtime_error("VulkanDescriptorAllocator: failed to allocate descriptor set");
+        }
     }
 
     _availablePools.push_back(pool);
 
-    return set;
+    return std::move(sets[0]);
 }
 
-vk::DescriptorPool VulkanDescriptorAllocator::getPool()
+std::shared_ptr<vk::raii::DescriptorPool> VulkanDescriptorAllocator::getPool()
 {
-    vk::DescriptorPool pool;
+    std::shared_ptr<vk::raii::DescriptorPool> pool;
 
     if (_availablePools.size() != 0)
     {
@@ -87,22 +111,21 @@ vk::DescriptorPool VulkanDescriptorAllocator::getPool()
     return pool;
 }
 
-vk::DescriptorPool VulkanDescriptorAllocator::createPool()
+std::shared_ptr<vk::raii::DescriptorPool> VulkanDescriptorAllocator::createPool()
 {
     vk::DescriptorPoolSize poolSizes[2];
-    poolSizes[0].type = vk::DescriptorType::eUniformBuffer;
-    poolSizes[0].descriptorCount = _setsPerPool;
+    poolSizes[0].setType(vk::DescriptorType::eUniformBuffer);
+    poolSizes[0].setDescriptorCount(_setsPerPool);
 
-    poolSizes[1].type = vk::DescriptorType::eCombinedImageSampler;
-    poolSizes[1].descriptorCount = _setsPerPool;
+    poolSizes[1].setType(vk::DescriptorType::eCombinedImageSampler);
+    poolSizes[1].setDescriptorCount(_setsPerPool);
 
     vk::DescriptorPoolCreateInfo info = {};
-    info.sType = vk::StructureType::eDescriptorPoolCreateInfo;
-    info.maxSets = _setsPerPool;
-    info.poolSizeCount = 2;
-    info.pPoolSizes = poolSizes;
+    info.setMaxSets(_setsPerPool);
+    info.setPoolSizeCount(2);
+    info.setPoolSizes(poolSizes);
 
-    vk::DescriptorPool pool = _device.createDescriptorPool(info);
+    std::shared_ptr<vk::raii::DescriptorPool> pool = std::make_shared<vk::raii::DescriptorPool>(*_device, info);
 
     if (_setsPerPool < 4096)
     {
