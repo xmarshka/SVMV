@@ -145,36 +145,52 @@ void Loader::details::processPrimitive(std::shared_ptr<Node> node, const tinyglt
         tinygltf::Accessor gltfIndices = gltfModel->accessors[gltfPrimitive.indices];
         tinygltf::BufferView gltfBufferView = gltfModel->bufferViews[gltfIndices.bufferView];
 
-        primitive->indices.reserve(gltfIndices.count);
+        Attribute attribute;
+        attribute.attributeType = AttributeType::INDEX;
+        attribute.type = Type::UINT32;
+        attribute.size = gltfIndices.count * sizeof(uint32_t);
+        attribute.count = gltfIndices.count;
+        attribute.componentCount = 1;
+
+        attribute.elements = std::make_unique_for_overwrite<std::byte[]>(gltfIndices.count * sizeof(uint32_t));
 
         switch (gltfIndices.componentType)
         {
         case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT:
         {
-            uint32_t* data = reinterpret_cast<uint32_t*>(gltfModel->buffers[gltfBufferView.buffer].data.data() + gltfIndices.byteOffset + gltfBufferView.byteOffset);
+            uint32_t* destination = reinterpret_cast<uint32_t*>(attribute.elements.get());
+            std::byte* source = reinterpret_cast<std::byte*>(gltfModel->buffers[gltfBufferView.buffer].data.data() + gltfIndices.byteOffset + gltfBufferView.byteOffset);
+
             for (int i = 0; i < gltfIndices.count; i++)
             {
-                primitive->indices.push_back(data[i]);
+                destination[i] = *(reinterpret_cast<uint32_t*>(source));
+                source += gltfBufferView.byteStride;
             }
         }
             break;
 
         case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT:
         {
-            uint16_t* data = reinterpret_cast<uint16_t*>(gltfModel->buffers[gltfBufferView.buffer].data.data() + gltfIndices.byteOffset + gltfBufferView.byteOffset);
+            uint32_t* destination = reinterpret_cast<uint32_t*>(attribute.elements.get());
+            std::byte* source = reinterpret_cast<std::byte*>(gltfModel->buffers[gltfBufferView.buffer].data.data() + gltfIndices.byteOffset + gltfBufferView.byteOffset);
+
             for (int i = 0; i < gltfIndices.count; i++)
             {
-                primitive->indices.push_back(data[i]);
+                destination[i] = *(reinterpret_cast<uint16_t*>(source));
+                source += gltfBufferView.byteStride;
             }
         }
             break;
 
         case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE:
         {
-            uint8_t* data = reinterpret_cast<uint8_t*>(gltfModel->buffers[gltfBufferView.buffer].data.data() + gltfIndices.byteOffset + gltfBufferView.byteOffset);
+            uint32_t* destination = reinterpret_cast<uint32_t*>(attribute.elements.get());
+            std::byte* source = reinterpret_cast<std::byte*>(gltfModel->buffers[gltfBufferView.buffer].data.data() + gltfIndices.byteOffset + gltfBufferView.byteOffset);
+
             for (int i = 0; i < gltfIndices.count; i++)
             {
-                primitive->indices.push_back(data[i]);
+                destination[i] = *(reinterpret_cast<uint8_t*>(source));
+                source += gltfBufferView.byteStride;
             }
         }
             break;
@@ -185,125 +201,58 @@ void Loader::details::processPrimitive(std::shared_ptr<Node> node, const tinyglt
         }
     }
 
-    if (gltfPrimitive.attributes.find("POSITION") != gltfPrimitive.attributes.end()) // TODO: handle special case for when there are no indices
+    std::array<const char*, 5> attributeNames { "POSITION", "NORMAL", "TANGENT", "TEXCOORD_0", "COLOR_0" };
+
+    for (const auto& attributeName : attributeNames)
     {
-        tinygltf::Accessor gltfAttribute = gltfModel->accessors[gltfPrimitive.attributes.at("POSITION")]; // TODO: make sure the index here isn't -1?
-        tinygltf::BufferView gltfBufferView = gltfModel->bufferViews[gltfAttribute.bufferView];
-
-        primitive->positions.resize(gltfAttribute.count);
-
-        // positions in gltf models are always floats in vec3s
-        float* data = reinterpret_cast<float*>(gltfModel->buffers[gltfBufferView.buffer].data.data() + gltfAttribute.byteOffset + gltfBufferView.byteOffset);
-        float* attributeData = reinterpret_cast<float*>(primitive->positions.data());
-
-        copyAccessorToDestination<float>(data, attributeData, gltfAttribute.count, 4, gltfBufferView.byteStride);
-    }
-
-    if (gltfPrimitive.attributes.find("NORMAL") != gltfPrimitive.attributes.end()) // TODO: handle special case for when there are no indices
-    {
-        tinygltf::Accessor gltfAttribute = gltfModel->accessors[gltfPrimitive.attributes.at("NORMAL")]; // TODO: make sure the index here isn't -1?
-        tinygltf::BufferView gltfBufferView = gltfModel->bufferViews[gltfAttribute.bufferView];
-
-        primitive->normals.resize(gltfAttribute.count);
-
-        // normals in gltf models are always floats in vec3s
-        float* data = reinterpret_cast<float*>(gltfModel->buffers[gltfBufferView.buffer].data.data() + gltfAttribute.byteOffset + gltfBufferView.byteOffset);
-        float* attributeData = reinterpret_cast<float*>(primitive->normals.data());
-
-        copyAccessorToDestination<float>(data, attributeData, gltfAttribute.count, 4, gltfBufferView.byteStride);
-    }
-
-    if (gltfPrimitive.attributes.find("TANGENT") != gltfPrimitive.attributes.end()) // TODO: handle special case for when there are no indices
-    {
-        tinygltf::Accessor gltfAttribute = gltfModel->accessors[gltfPrimitive.attributes.at("TANGENT")]; // TODO: make sure the index here isn't -1?
-        tinygltf::BufferView gltfBufferView = gltfModel->bufferViews[gltfAttribute.bufferView];
-
-        primitive->tangents.resize(gltfAttribute.count);
-
-        // normals in gltf models are always floats in vec3s
-        float* data = reinterpret_cast<float*>(gltfModel->buffers[gltfBufferView.buffer].data.data() + gltfAttribute.byteOffset + gltfBufferView.byteOffset);
-        float* attributeData = reinterpret_cast<float*>(primitive->tangents.data());
-
-        copyAccessorToDestination<float>(data, attributeData, gltfAttribute.count, 4, gltfBufferView.byteStride);
-    }
-
-    if (gltfPrimitive.attributes.find("TEXCOORD_0") != gltfPrimitive.attributes.end()) // TODO: handle special case for when there are no indices
-    {
-        tinygltf::Accessor gltfAttribute = gltfModel->accessors[gltfPrimitive.attributes.at("TEXCOORD_0")]; // TODO: make sure the index here isn't -1?
-        tinygltf::BufferView gltfBufferView = gltfModel->bufferViews[gltfAttribute.bufferView];
-
-        primitive->texcoords_0.resize(gltfAttribute.count);
-
-        if (gltfAttribute.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT)
+        if (gltfPrimitive.attributes.find(attributeName) != gltfPrimitive.attributes.end())
         {
-            float* data = reinterpret_cast<float*>(gltfModel->buffers[gltfBufferView.buffer].data.data() + gltfAttribute.byteOffset + gltfBufferView.byteOffset);
-            float* attributeData = reinterpret_cast<float*>(primitive->texcoords_0.data());
+            tinygltf::Accessor gltfAttribute = gltfModel->accessors[gltfPrimitive.attributes.at(attributeName)]; // TODO: make sure the index here isn't -1?
+            tinygltf::BufferView gltfBufferView = gltfModel->bufferViews[gltfAttribute.bufferView];
 
-            copyAccessorToDestination<float>(data, attributeData, gltfAttribute.count, 2, gltfBufferView.byteStride);
-        }
-        else if (gltfAttribute.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
-        {
-            uint8_t* data = reinterpret_cast<uint8_t*>(gltfModel->buffers[gltfBufferView.buffer].data.data() + gltfAttribute.byteOffset + gltfBufferView.byteOffset);
-            float* attributeData = reinterpret_cast<float*>(primitive->texcoords_0.data());
+            int finalComponentCount = (attributeName == "COLOR_0") ? 4 : tinygltf::GetNumComponentsInType(gltfAttribute.type);
 
-            copyNormalizedAccessorToDestination<uint8_t>(data, attributeData, gltfAttribute.count, 2, gltfBufferView.byteStride);
-        }
-        else if (gltfAttribute.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
-        {
-            uint16_t* data = reinterpret_cast<uint16_t*>(gltfModel->buffers[gltfBufferView.buffer].data.data() + gltfAttribute.byteOffset + gltfBufferView.byteOffset);
-            float* attributeData = reinterpret_cast<float*>(primitive->texcoords_0.data());
+            Attribute attribute;
+            attribute.attributeType = convertAttributeName(attributeName);
+            attribute.type = Type::FLOAT;
+            attribute.size = gltfAttribute.count * finalComponentCount * tinygltf::GetComponentSizeInBytes(gltfAttribute.componentType);
+            attribute.count = gltfAttribute.count;
+            attribute.componentCount = finalComponentCount;
 
-            copyNormalizedAccessorToDestination<uint16_t>(data, attributeData, gltfAttribute.count, 2, gltfBufferView.byteStride);
-        }
-    }
+            attribute.elements = std::make_unique_for_overwrite<std::byte[]>(gltfAttribute.count * finalComponentCount * tinygltf::GetComponentSizeInBytes(gltfAttribute.componentType));
 
-    if (gltfPrimitive.attributes.find("COLOR_0") != gltfPrimitive.attributes.end()) // TODO: handle special case for when there are no indices
-    {
-        tinygltf::Accessor gltfAttribute = gltfModel->accessors[gltfPrimitive.attributes.at("COLOR_0")]; // TODO: make sure the index here isn't -1?
-        tinygltf::BufferView gltfBufferView = gltfModel->bufferViews[gltfAttribute.bufferView];
+            std::unique_ptr<float[]> denormalized = nullptr;
 
-        primitive->colors_0.resize(gltfAttribute.count);
+            std::byte* source = reinterpret_cast<std::byte*>(gltfModel->buffers[gltfBufferView.buffer].data.data() + gltfAttribute.byteOffset + gltfBufferView.byteOffset);
+            int byteStride = gltfBufferView.byteStride;
 
-        if (gltfAttribute.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT)
-        {
-            float* data = reinterpret_cast<float*>(gltfModel->buffers[gltfBufferView.buffer].data.data() + gltfAttribute.byteOffset + gltfBufferView.byteOffset);
-            float* attributeData = reinterpret_cast<float*>(primitive->colors_0.data());
-
-            if (tinygltf::GetNumComponentsInType(gltfAttribute.type) == 4)
+            if (gltfAttribute.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
             {
-                copyAccessorToDestination<float>(data, attributeData, gltfAttribute.count, 4, gltfBufferView.byteStride);
+                denormalized = getDenormalizedByteAccessorData(reinterpret_cast<uint8_t*>(source), gltfAttribute.count, tinygltf::GetNumComponentsInType(gltfAttribute.type), gltfBufferView.byteStride);
+                source = reinterpret_cast<std::byte*>(denormalized.get());
+                byteStride = 0;
             }
-            else if (tinygltf::GetNumComponentsInType(gltfAttribute.type) == 3)
+            else if (gltfAttribute.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
             {
-                copyAccessorToDestination<float>(data, attributeData, gltfAttribute.count, 3, gltfBufferView.byteStride, 4, 1.0f);
+                denormalized = getDenormalizedShortAccessorData(reinterpret_cast<uint16_t*>(source), gltfAttribute.count, tinygltf::GetNumComponentsInType(gltfAttribute.type), gltfBufferView.byteStride);
+                source = reinterpret_cast<std::byte*>(denormalized.get());
+                byteStride = 0;
             }
-        }
-        else if (gltfAttribute.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
-        {
-            uint8_t* data = reinterpret_cast<uint8_t*>(gltfModel->buffers[gltfBufferView.buffer].data.data() + gltfAttribute.byteOffset + gltfBufferView.byteOffset);
-            float* attributeData = reinterpret_cast<float*>(primitive->colors_0.data());
 
-            if (tinygltf::GetNumComponentsInType(gltfAttribute.type) == 4)
+            if (finalComponentCount == tinygltf::GetNumComponentsInType(gltfAttribute.type))
             {
-                copyNormalizedAccessorToDestination<uint8_t>(data, attributeData, gltfAttribute.count, 4, gltfBufferView.byteStride);
+                copyAccessorToDestination(
+                    source, attribute.elements.get(), gltfAttribute.count, tinygltf::GetNumComponentsInType(gltfAttribute.type),
+                    tinygltf::GetComponentSizeInBytes(gltfAttribute.componentType), byteStride
+                );
             }
-            else if (tinygltf::GetNumComponentsInType(gltfAttribute.type) == 3)
+            else
             {
-                copyNormalizedAccessorToDestination<uint8_t>(data, attributeData, gltfAttribute.count, 3, gltfBufferView.byteStride, 4, 1.0f);
-            }
-        }
-        else if (gltfAttribute.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
-        {
-            uint16_t* data = reinterpret_cast<uint16_t*>(gltfModel->buffers[gltfBufferView.buffer].data.data() + gltfAttribute.byteOffset + gltfBufferView.byteOffset);
-            float* attributeData = reinterpret_cast<float*>(primitive->colors_0.data());
-
-            if (tinygltf::GetNumComponentsInType(gltfAttribute.type) == 4)
-            {
-                copyNormalizedAccessorToDestination<uint16_t>(data, attributeData, gltfAttribute.count, 4, gltfBufferView.byteStride);
-            }
-            else if (tinygltf::GetNumComponentsInType(gltfAttribute.type) == 3)
-            {
-                copyNormalizedAccessorToDestination<uint16_t>(data, attributeData, gltfAttribute.count, 3, gltfBufferView.byteStride, 4, 1.0f);
+                float fillerValue = 1.0f; // for color attributes, where the filled alpha value is 1.0f
+                copyMismatchedAccessorToDestination(
+                    source, attribute.elements.get(), gltfAttribute.count, tinygltf::GetNumComponentsInType(gltfAttribute.type),
+                    finalComponentCount, &fillerValue, tinygltf::GetComponentSizeInBytes(gltfAttribute.componentType), byteStride
+                );
             }
         }
     }
@@ -373,148 +322,96 @@ void Loader::details::processTexture(std::shared_ptr<Texture> texture, const tin
     }
 }
 
-template <typename sourceType>
-void Loader::details::copyAccessorToDestination(sourceType* source, sourceType* destination, size_t count, size_t componentCount, size_t byteStride)
+void Loader::details::copyAccessorToDestination(std::byte* source, std::byte* destination, size_t count, size_t componentCount, size_t componentSize, size_t byteStride)
 {
-    sourceType* sourcePointer = source;
-    sourceType* destinationPointer = destination;
-
-    if (byteStride != 0)
+    for (int i = 0; i < count; i++)
     {
-        byteStride -= componentCount * sizeof(sourceType);
+        memcpy(destination, source, componentCount * componentSize);
+
+        destination += componentCount * componentSize;
+        source += byteStride;
     }
+}
+
+void Loader::details::copyMismatchedAccessorToDestination(std::byte* source, std::byte* destination, size_t count, size_t sourceComponentCount, size_t destinationComponentCount, void* fillerValue, size_t componentSize, size_t byteStride)
+{
+    for (int i = 0; i < count; i++)
+    {
+        memcpy(destination, source, sourceComponentCount * componentSize);
+        destination += sourceComponentCount * componentSize;
+
+        for (int i = 0; i < (destinationComponentCount - sourceComponentCount); i++)
+        {
+            memcpy(destination, fillerValue, 1);
+            destination += 1;
+        }
+
+        source += byteStride;
+    }
+}
+
+std::unique_ptr<float[]> Loader::details::getDenormalizedByteAccessorData(uint8_t* source, size_t count, size_t componentCount, size_t byteStride)
+{
+    std::unique_ptr<float[]> data = std::make_unique_for_overwrite<float[]>(count * componentCount);
+
+    size_t maximum = std::powl(2, sizeof(uint8_t) * 8) - 1;
 
     for (int i = 0; i < count; i++)
     {
-        memcpy(destinationPointer, sourcePointer, componentCount * sizeof(sourceType));
-
-        sourcePointer += componentCount + (byteStride / sizeof(sourceType)); // advances by sizeof(T) bytes, from the spec: "When byteStride is defined, it MUST be a multiple of the size of the accessor’s component type."
-        destinationPointer += componentCount;
-    }
-}
-
-template <typename sourceType>
-void Loader::details::copyAccessorToDestination(sourceType* source, sourceType* destination, size_t count, size_t componentCount, size_t byteStride, size_t destinationComponentCount)
-{
-    sourceType* sourcePointer = source;
-    sourceType* destinationPointer = destination;
-
-    if (byteStride != 0)
-    {
-        byteStride -= componentCount * sizeof(sourceType);
-    }
-
-    for (int i = 0; i < count; i++)
-    {
-        memcpy(destinationPointer, sourcePointer, componentCount * sizeof(sourceType));
-
-        sourcePointer += componentCount + (byteStride / sizeof(sourceType)); // advances by 4 bytes, from the spec: "When byteStride is defined, it MUST be a multiple of the size of the accessor’s component type."
-        destinationPointer += destinationComponentCount;
-    }
-}
-
-template <typename sourceType>
-void Loader::details::copyAccessorToDestination(sourceType* source, sourceType* destination, size_t count, size_t componentCount, size_t byteStride, size_t destinationComponentCount, float fillerValue)
-{
-    sourceType* sourcePointer = source;
-    sourceType* destinationPointer = destination;
-
-    if (byteStride != 0)
-    {
-        byteStride -= componentCount * sizeof(sourceType);
-    }
-
-    for (int i = 0; i < count; i++)
-    {
-        memcpy(destinationPointer, sourcePointer, componentCount * sizeof(sourceType));
-
-        sourcePointer += componentCount + (byteStride / sizeof(sourceType)); // advances by 4 bytes, from the spec: "When byteStride is defined, it MUST be a multiple of the size of the accessor’s component type."
-        destinationPointer += componentCount;
-
-        for (int j = 0; j < destinationComponentCount - componentCount; j++)
+        for (int j = 0; j < componentCount; j++)
         {
-            *destinationPointer = fillerValue;
-            destinationPointer++;
-        }
-    }
-}
-
-template <typename sourceType>
-void Loader::details::copyNormalizedAccessorToDestination(sourceType* source, float* destination, size_t count, size_t componentCount, size_t byteStride)
-{
-    sourceType* sourcePointer = source;
-    float* destinationPointer = destination;
-
-    if (byteStride != 0)
-    {
-        byteStride -= componentCount * sizeof(sourceType);
-    }
-
-    size_t maximum = std::powl(2, sizeof(sourceType) * 8) - 1;
-
-    int i = 0;
-
-    for (; i < componentCount; i++)
-    {
-        *destinationPointer = static_cast<float>(*sourcePointer) / maximum;
-
-        sourcePointer++;
-        destinationPointer++;
-    }
-
-    for (; i < count; i++)
-    {
-        if (i % componentCount == 0)
-        {
-            sourcePointer += byteStride / sizeof(sourceType);
+            data.get()[i] = static_cast<float>(source[j]) / maximum;
         }
 
-        *destinationPointer = static_cast<float>(*sourcePointer) / maximum;
-
-        sourcePointer++;
-        destinationPointer++;
+        source += byteStride;
     }
+
+    return data;
 }
 
-template <typename sourceType>
-void Loader::details::copyNormalizedAccessorToDestination(sourceType* source, float* destination, size_t count, size_t componentCount, size_t byteStride, size_t destinationComponentCount, float fillerValue)
+std::unique_ptr<float[]> Loader::details::getDenormalizedShortAccessorData(uint16_t* source, size_t count, size_t componentCount, size_t byteStride)
 {
-    sourceType* sourcePointer = source;
-    float* destinationPointer = destination;
+    std::unique_ptr<float[]> data = std::make_unique_for_overwrite<float[]>(count * componentCount);
 
-    if (byteStride != 0)
+    size_t maximum = std::powl(2, sizeof(uint16_t) * 8) - 1;
+
+    for (int i = 0; i < count * componentCount; i += componentCount)
     {
-        byteStride -= componentCount * sizeof(sourceType);
-    }
-
-    size_t maximum = std::powl(2, sizeof(sourceType) * 8) - 1;
-
-    int i = 0;
-
-    for (; i < componentCount; i++)
-    {
-        *destinationPointer = static_cast<float>(*sourcePointer) / maximum;
-
-        sourcePointer++;
-        destinationPointer++;
-    }
-
-    for (; i < count; i++)
-    {
-        if (i % componentCount == 0)
+        for (int j = 0; j < componentCount; j++)
         {
-            sourcePointer += byteStride / sizeof(sourceType);
-
-            for (int j = 0; j < destinationComponentCount - componentCount; j++)
-            {
-                *destinationPointer = fillerValue;
-                destinationPointer++;
-            }
+            data.get()[i + j] = static_cast<float>(source[j]) / maximum;
         }
 
-        *destinationPointer = static_cast<float>(*sourcePointer) / maximum;
+        source = reinterpret_cast<uint16_t*>((reinterpret_cast<uint8_t*>(source) + byteStride));
+    }
 
-        sourcePointer++;
-        destinationPointer++;
+    return data;
+}
+
+AttributeType Loader::details::convertAttributeName(const std::string& attributeName)
+{
+    if (attributeName == "POSITION")
+    {
+        return AttributeType::POSITION;
+    }
+    else if (attributeName == "NORMAL")
+    {
+        return AttributeType::NORMAL;
+    }
+    else if (attributeName == "TANGENT")
+    {
+        return AttributeType::TANGENT;
+    }
+    else if (attributeName == "TEXCOORD_0")
+    {
+        return AttributeType::TEXCOORD_0;
+    }
+    else if (attributeName == "COLOR_0")
+    {
+        return AttributeType::COLOR_0;
+    }
+    else
+    {
+        return AttributeType::UNDEFINED;
     }
 }

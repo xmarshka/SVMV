@@ -5,13 +5,12 @@
 
 namespace SVMV
 {
-    class Node;
-    class Mesh;
-    class Material;
+    struct Node;
+    struct Mesh;
+    struct Material;
 
-    class Scene
+    struct Scene
     {
-    public:
         std::shared_ptr<Node> root;
 
         std::vector<std::shared_ptr<Mesh>> meshes;

@@ -107,8 +107,9 @@ void VulkanRenderer::draw()
 
 void VulkanRenderer::loadScene(std::shared_ptr<Scene> scene)
 {
-    _scene.initialize(&_physicalDevice, &_instance, &_device, &_commandPool, &_graphicsQueue, _graphicsQueueIndex);
-    _scene.setScene(scene, &_renderPass, _swapchainExtent, _framesInFlight);
+    preprocessScene(scene);
+    generateDrawablesFromScene(scene->root, glm::mat4(1.0f));
+    copyStagingBuffersToGPUBuffers();
 }
 
 const vk::Device VulkanRenderer::getDevice() const noexcept
@@ -116,9 +117,117 @@ const vk::Device VulkanRenderer::getDevice() const noexcept
     return (*_device);
 }
 
-const GLFWwindow* VulkanRenderer::getWindow() const noexcept
+GLFWwindow* VulkanRenderer::getWindow() const noexcept
 {
     return _window.getWindow();
+}
+
+void VulkanRenderer::preprocessScene(std::shared_ptr<Scene> scene)
+{
+    size_t indicesBufferSize = 0;
+
+    size_t positionsBufferSize = 0;
+    size_t normalsBufferSize = 0;
+    size_t tangentsBufferSize = 0;
+    size_t texcoords_0BufferSize = 0;
+    size_t colors_0BufferSize = 0;
+
+    for (const auto& mesh : scene->meshes)
+    {
+        for (const auto& primitive : mesh->primitives)
+        {
+            indicesBufferSize += primitive->indices.size() * sizeof(decltype(primitive->indices)::value_type);
+
+            positionsBufferSize += primitive->positions.size() * sizeof(decltype(primitive->positions)::value_type);
+            normalsBufferSize += primitive->normals.size() * sizeof(decltype(primitive->normals)::value_type);
+            tangentsBufferSize += primitive->tangents.size() * sizeof(decltype(primitive->tangents)::value_type);
+            texcoords_0BufferSize += primitive->texcoords_0.size() * sizeof(decltype(primitive->texcoords_0)::value_type);
+            colors_0BufferSize += primitive->colors_0.size() * sizeof(decltype(primitive->colors_0)::value_type);
+        }
+    }
+
+    _scene.indices.gpuBuffer = VulkanGPUBuffer(&_device, _vmaAllocator.getAllocator(), indicesBufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer);
+    _scene.indices.stagingBuffer = VulkanStagingBuffer(&_device, _scene.indices.gpuBuffer, &_immediateSubmit);
+
+    if (positionsBufferSize > 0)
+    {
+        _scene.positions.gpuBuffer = VulkanGPUBuffer(&_device, _vmaAllocator.getAllocator(), positionsBufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress);
+        _scene.positions.gpuBufferAddressCounter = _scene.positions.gpuBuffer.getAddress(_device);
+        _scene.positions.stagingBuffer = VulkanStagingBuffer(&_device, _scene.positions.gpuBuffer, &_immediateSubmit);
+    }
+    if (normalsBufferSize > 0)
+    {
+        _scene.normals.gpuBuffer = VulkanGPUBuffer(&_device, _vmaAllocator.getAllocator(), normalsBufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress);
+        _scene.normals.gpuBufferAddressCounter = _scene.normals.gpuBuffer.getAddress(_device);
+        _scene.normals.stagingBuffer = VulkanStagingBuffer(&_device, _scene.positions.gpuBuffer, &_immediateSubmit);
+    }
+    if (tangentsBufferSize > 0)
+    {
+        _scene.tangents.gpuBuffer = VulkanGPUBuffer(&_device, _vmaAllocator.getAllocator(), tangentsBufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress);
+        _scene.tangents.gpuBufferAddressCounter = _scene.tangents.gpuBuffer.getAddress(_device);
+        _scene.tangents.stagingBuffer = VulkanStagingBuffer(&_device, _scene.positions.gpuBuffer, &_immediateSubmit);
+    }
+    if (texcoords_0BufferSize > 0)
+    {
+        _scene.texcoords_0.gpuBuffer = VulkanGPUBuffer(&_device, _vmaAllocator.getAllocator(), texcoords_0BufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress);
+        _scene.texcoords_0.gpuBufferAddressCounter = _scene.texcoords_0.gpuBuffer.getAddress(_device);
+        _scene.texcoords_0.stagingBuffer = VulkanStagingBuffer(&_device, _scene.positions.gpuBuffer, &_immediateSubmit);
+    }
+    if (colors_0BufferSize > 0)
+    {
+        _scene.colors_0.gpuBuffer = VulkanGPUBuffer(&_device, _vmaAllocator.getAllocator(), colors_0BufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress);
+        _scene.colors_0.gpuBufferAddressCounter = _scene.colors_0.gpuBuffer.getAddress(_device);
+        _scene.colors_0.stagingBuffer = VulkanStagingBuffer(&_device, _scene.positions.gpuBuffer, &_immediateSubmit);
+    }
+}
+
+void VulkanRenderer::generateDrawablesFromScene(std::shared_ptr<Node> node, glm::mat4 baseTransform)
+{
+    for (const auto& primitive : node->mesh->primitives)
+    {
+        VulkanDrawable drawable;
+
+        drawable.modelMatrix = node->transform * baseTransform;
+        drawable.firstIndex = _scene.indexCounter;
+        drawable.indexCount = primitive->indices.size();
+
+        _scene.indices.stagingBuffer.pushData(primitive->indices.data(), primitive->indices.size() * sizeof(decltype(primitive->indices)::value_type));
+
+        if (primitive->positions.empty() == false)
+        {
+            _scene.positions.stagingBuffer.pushData(primitive->positions.data(), primitive->positions.size() * sizeof(decltype(primitive->positions)::value_type));
+            drawable.addresses.positions = _scene.positions.gpuBufferAddressCounter;
+            _scene.positions.gpuBufferAddressCounter += primitive->positions.size() * sizeof(decltype(primitive->positions)::value_type);
+        }
+        if (primitive->normals.empty() == false)
+        {
+            _scene.normals.stagingBuffer.pushData(primitive->normals.data(), primitive->normals.size() * sizeof(decltype(primitive->normals)::value_type));
+            drawable.addresses.normals = _scene.normals.gpuBufferAddressCounter;
+            _scene.normals.gpuBufferAddressCounter += primitive->normals.size() * sizeof(decltype(primitive->normals)::value_type);
+        }
+        if (primitive->tangents.empty() == false)
+        {
+            _scene.tangents.stagingBuffer.pushData(primitive->tangents.data(), primitive->tangents.size() * sizeof(decltype(primitive->tangents)::value_type));
+            drawable.addresses.tangents = _scene.tangents.gpuBufferAddressCounter;
+            _scene.tangents.gpuBufferAddressCounter += primitive->tangents.size() * sizeof(decltype(primitive->tangents)::value_type);
+        }
+        if (primitive->texcoords_0.empty() == false)
+        {
+            _scene.texcoords_0.stagingBuffer.pushData(primitive->texcoords_0.data(), primitive->texcoords_0.size() * sizeof(decltype(primitive->texcoords_0)::value_type));
+            drawable.addresses.texcoords_0 = _scene.texcoords_0.gpuBufferAddressCounter;
+            _scene.texcoords_0.gpuBufferAddressCounter += primitive->texcoords_0.size() * sizeof(decltype(primitive->texcoords_0)::value_type);
+        }
+        if (primitive->colors_0.empty() == false)
+        {
+            _scene.colors_0.stagingBuffer.pushData(primitive->colors_0.data(), primitive->colors_0.size() * sizeof(decltype(primitive->colors_0)::value_type));
+            drawable.addresses.colors_0 = _scene.colors_0.gpuBufferAddressCounter;
+            _scene.colors_0.gpuBufferAddressCounter += primitive->colors_0.size() * sizeof(decltype(primitive->colors_0)::value_type);
+        }
+    }
+}
+
+void VulkanRenderer::copyStagingBuffersToGPUBuffers()
+{
 }
 
 void VulkanRenderer::recreateSwapchain()

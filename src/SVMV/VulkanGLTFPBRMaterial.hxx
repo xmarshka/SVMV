@@ -2,7 +2,6 @@
 
 #include <SVMV/Material.hxx>
 #include <SVMV/Texture.hxx>
-#include <SVMV/VulkanDescriptorAllocator.hxx>
 #include <SVMV/VulkanMaterial.hxx>
 #include <SVMV/VulkanImage.hxx>
 #include <SVMV/VulkanBuffer.hxx>
@@ -26,7 +25,7 @@ namespace SVMV
         vk::raii::Device* _device;
         VmaAllocator _memoryAllocator;
         VulkanUtilities::ImmediateSubmit* _immediateSubmit;
-        VulkanDescriptorAllocator* _descriptorAllocator;
+        VulkanUtilities::DescriptorAllocator* _descriptorAllocator;
 
         vk::raii::Pipeline _pipeline;
         vk::raii::PipelineLayout _pipelineLayout;
@@ -51,10 +50,10 @@ namespace SVMV
 
     public:
         GLTFPBRMaterial();
-        GLTFPBRMaterial(vk::raii::Device* device, VmaAllocator allocator, const vk::raii::RenderPass& renderPass, const vk::Extent2D& extent, VulkanDescriptorAllocator* descriptorAllocator);
+        GLTFPBRMaterial(vk::raii::Device* device, VmaAllocator allocator, const vk::raii::RenderPass& renderPass, const vk::Extent2D& extent, VulkanUtilities::DescriptorAllocator* descriptorAllocator);
         ~GLTFPBRMaterial();
 
-        void initialize(vk::raii::Device* device, VmaAllocator allocator, const vk::raii::RenderPass& renderPass, const vk::Extent2D& extent, VulkanDescriptorAllocator* descriptorAllocator);
+        void initialize(vk::raii::Device* device, VmaAllocator allocator, const vk::raii::RenderPass& renderPass, const vk::Extent2D& extent, VulkanUtilities::DescriptorAllocator* descriptorAllocator);
         void free();
 
         std::shared_ptr<MaterialInstance> generateMaterialInstance(std::shared_ptr<Material> material);

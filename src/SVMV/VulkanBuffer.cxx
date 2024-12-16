@@ -88,6 +88,14 @@ const VmaAllocation VulkanBuffer::getAllocation() const
     return _allocation;
 }
 
+const vk::DeviceAddress VulkanBuffer::getAddress(const vk::Device& device) const
+{
+    vk::BufferDeviceAddressInfo deviceAddressInfo;
+    deviceAddressInfo.buffer = _buffer;
+
+    return device.getBufferAddress(deviceAddressInfo);
+}
+
 VulkanGPUBuffer::VulkanGPUBuffer(vk::raii::Device* device, VmaAllocator vmaAllocator, size_t bufferSize, vk::Flags<vk::BufferUsageFlagBits> bufferUsage)
     : VulkanBuffer(device, vmaAllocator, bufferSize, bufferUsage, VMA_MEMORY_USAGE_GPU_ONLY)
 {}
@@ -103,16 +111,20 @@ VulkanGPUBuffer& VulkanGPUBuffer::operator=(VulkanGPUBuffer&& other) noexcept
 }
 
 VulkanStagingBuffer::VulkanStagingBuffer(vk::raii::Device* device, VulkanUtilities::ImmediateSubmit* immediateSubmit, VmaAllocator vmaAllocator, size_t bufferSize)
-    : VulkanBuffer(device, vmaAllocator, bufferSize, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY), _immediateSubmit(immediateSubmit)
+    : VulkanBuffer(device, vmaAllocator, bufferSize, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY)
+    , _immediateSubmit(immediateSubmit)
 {
     _capacity = bufferSize;
+
+    VmaAllocationInfo allocationInfo = {};
+    vmaGetAllocationInfo(_allocator, _allocation, &allocationInfo);
+    _mappedData = reinterpret_cast<uint8_t*>(allocationInfo.pMappedData);
 }
 
 VulkanStagingBuffer::VulkanStagingBuffer(vk::raii::Device* device, const VulkanBuffer& destinationBuffer, VulkanUtilities::ImmediateSubmit* immediateSubmit)
     : VulkanBuffer(device, destinationBuffer.getAllocator(), destinationBuffer.getAllocation()->GetSize(), vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_TO_GPU, true)
     , _immediateSubmit(immediateSubmit)
 {
-    destinationBuffer.getAllocator();
     _capacity = destinationBuffer.getAllocation()->GetSize();
 
     VmaAllocationInfo allocationInfo = {};

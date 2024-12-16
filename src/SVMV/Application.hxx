@@ -22,7 +22,7 @@ namespace SVMV
         Application(Application&& other) = delete;
         Application& operator=(Application&& other) = delete;
 
-        ~Application();
+        ~Application() = default;
 
     private:
         void initialize(int width, int height, const std::string& name);

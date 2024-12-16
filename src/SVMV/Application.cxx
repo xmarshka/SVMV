@@ -9,24 +9,14 @@ Application::Application(int width, int height, const std::string& name)
     loop();
 }
 
-Application::~Application()
-{
-    cleanup();
-}
-
 void Application::initialize(int width, int height, const std::string& name)
 {
     _renderer.loadScene(Loader::loadScene(RESOURCE_DIR"/models/shapes.gltf"));
 }
 
-void Application::cleanup()
-{
-    glfwTerminate();
-}
-
 void Application::loop()
 {
-    while (!glfwWindowShouldClose(_renderer.getWindow() .get()))
+    while (!glfwWindowShouldClose(_renderer.getWindow()))
     {
         if (_frozen)
         {
@@ -52,12 +42,12 @@ void Application::minimized(GLFWwindow* window, int minimized)
 {
     SVMV::Application* application = reinterpret_cast<SVMV::Application*>(glfwGetWindowUserPointer(window));
 
-    if (minimized)
-    {
-        application->_frozen = true;
-    }
-    else
-    {
-        application->_frozen = false;
-    }
+    //if (minimized)
+    //{
+    //    application->_frozen = true;
+    //}
+    //else
+    //{
+    //    application->_frozen = false;
+    //}
 }

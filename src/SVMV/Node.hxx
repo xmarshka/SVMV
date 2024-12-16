@@ -7,11 +7,10 @@
 
 namespace SVMV
 {
-    class Mesh;
+    struct Mesh;
 
-    class Node
+    struct Node
     {
-    public:
         glm::mat4 transform{ 1.0 }; // initialized to identity
         std::vector<std::shared_ptr<Node>> children;
 

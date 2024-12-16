@@ -10,17 +10,17 @@ namespace SVMV
 {
     struct MaterialInstance;
 
+    struct AttributeAddresses
+    {
+        vk::DeviceAddress positions;
+        vk::DeviceAddress normals;
+        vk::DeviceAddress tangents;
+        vk::DeviceAddress texcoords_0;
+        vk::DeviceAddress colors_0;
+    };
+
     struct VulkanDrawable
     {
-        struct AttributeAddresses
-        {
-            vk::DeviceAddress positions;
-            vk::DeviceAddress normals;
-            vk::DeviceAddress tangents;
-            vk::DeviceAddress texcoords_0;
-            vk::DeviceAddress colors_0;
-        };
-
         uint32_t firstIndex;
         uint32_t indexCount;
 

@@ -12,13 +12,13 @@ namespace SVMV
 
     struct MaterialPipeline
     {
-        vk::Pipeline pipeline;
-        vk::PipelineLayout layout;
+        vk::raii::Pipeline pipeline;
+        vk::raii::PipelineLayout layout;
     };
 
     struct MaterialInstance
     {
-        vk::DescriptorSet descriptorSet;
+        vk::raii::DescriptorSet descriptorSet;
 
         MaterialName materialName;
     };

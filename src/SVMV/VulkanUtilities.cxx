@@ -72,7 +72,8 @@ void VulkanUtilities::ImmediateSubmit::submit(std::function<void(const vk::raii:
     _device->waitForFences(*_fence, true, INT16_MAX);
 }
 
-VulkanUtilities::DescriptorAllocator::DescriptorAllocator(vk::raii::Device* device) : _device(device)
+VulkanUtilities::DescriptorAllocator::DescriptorAllocator(vk::raii::Device* device)
+    : _device(device)
 {}
 
 VulkanUtilities::DescriptorAllocator::DescriptorAllocator(DescriptorAllocator&& other) noexcept

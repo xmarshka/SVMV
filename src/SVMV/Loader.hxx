@@ -10,6 +10,7 @@
 #include <SVMV/Node.hxx>
 #include <SVMV/Mesh.hxx>
 #include <SVMV/Primitive.hxx>
+#include <SVMV/Attribute.hxx>
 #include <SVMV/Material.hxx>
 #include <SVMV/Texture.hxx>
 
@@ -17,6 +18,7 @@
 #include <string>
 #include <iostream>
 #include <vector>
+#include <array>
 #include <unordered_set>
 
 namespace SVMV
@@ -39,20 +41,13 @@ namespace SVMV
 
             void processTexture(std::shared_ptr<Texture> texture, const tinygltf::TextureInfo& gltfTextureInfo);
 
-            template <typename sourceType>
-            void copyAccessorToDestination(sourceType* source, sourceType* destination, size_t count, size_t componentCount, size_t byteStride);
+            void copyAccessorToDestination(std::byte* source, std::byte* destination, size_t count, size_t componentCount, size_t componentSize, size_t byteStride);
+            void copyMismatchedAccessorToDestination(std::byte* source, std::byte* destination, size_t count, size_t sourceComponentCount, size_t destinationComponentCount, void* fillerValue, size_t componentSize, size_t byteStride);
 
-            template <typename sourceType>
-            void copyAccessorToDestination(sourceType* source, sourceType* destination, size_t count, size_t componentCount, size_t byteStride, size_t destinationComponentCount);
+            std::unique_ptr<float[]> getDenormalizedByteAccessorData(uint8_t* source, size_t count, size_t componentCount, size_t byteStride);
+            std::unique_ptr<float[]> getDenormalizedShortAccessorData(uint16_t* source, size_t count, size_t componentCount, size_t byteStride);
 
-            template <typename sourceType>
-            void copyAccessorToDestination(sourceType* source, sourceType* destination, size_t count, size_t componentCount, size_t byteStride, size_t destinationComponentCount, float fillerValue);
-
-            template <typename sourceType>
-            void copyNormalizedAccessorToDestination(sourceType* source, float* destination, size_t count, size_t componentCount, size_t byteStride);
-
-            template <typename sourceType>
-            void copyNormalizedAccessorToDestination(sourceType* source, float* destination, size_t count, size_t componentCount, size_t byteStride, size_t destinationComponentCount, float fillerValue);
+            AttributeType convertAttributeName(const std::string& attributeName);
         }
     }
 }

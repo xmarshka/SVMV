@@ -7,11 +7,17 @@
 
 namespace SVMV
 {
-    class Texture;
+    struct Texture;
 
-    class Material // a GLTF PBR material 
+    struct Material // a GLTF PBR material 
     {
-    public:
+        enum class MaterialType
+        {
+            UNLIT, GLTFPBR
+        };
+
+        MaterialType type{ MaterialType::GLTFPBR };
+
         glm::vec4 baseColorFactor{ 1.0f };
         float metallicFactor{ 0.0f };
         float roughnessFactor{ 0.0f };

@@ -28,6 +28,7 @@ namespace SVMV
         [[nodiscard]] const vk::raii::Buffer& getBuffer() const;
         [[nodiscard]] const VmaAllocator getAllocator() const;
         [[nodiscard]] const VmaAllocation getAllocation() const;
+        [[nodiscard]] const vk::DeviceAddress getAddress(const vk::Device& device) const;
 
     protected:
         vk::raii::Buffer _buffer{ nullptr };

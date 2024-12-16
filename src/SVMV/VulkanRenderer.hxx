@@ -38,11 +38,11 @@ namespace SVMV
         void loadScene(std::shared_ptr<Scene> scene);
 
         [[nodiscard]] const vk::Device getDevice() const noexcept;
-        [[nodiscard]] const GLFWwindow* getWindow() const noexcept;
+        [[nodiscard]] GLFWwindow* getWindow() const noexcept;
 
     private:
         void preprocessScene(std::shared_ptr<Scene> scene); // TODO: generate material contexts and materials that appear in the scene, get attribute sizes and create the buffers in VulkanScene
-        void generateDrawablesFromScene(std::shared_ptr<Scene> scene); // TODO: generate drawables and load mesh data to staging buffers, recursive
+        void generateDrawablesFromScene(std::shared_ptr<Node> node, glm::mat4 baseTransform); // TODO: generate drawables and load mesh data to staging buffers, recursive
         void copyStagingBuffersToGPUBuffers(); // TODO: in the name
 
         void recreateSwapchain();
@@ -53,10 +53,11 @@ namespace SVMV
 
     private:
         VulkanUtilities::GLFWwindowWrapper _window;
+        shaderc::Compiler _shaderCompiler;
 
         bool _resized                               { false };
-        unsigned _framesInFlight                    { 0 };
-        unsigned _activeFrame                       { 0 };
+        int _framesInFlight                         { 0 };
+        int _activeFrame                            { 0 };
 
         vk::Extent2D _swapchainExtent               { 0 };
         vk::Format _swapchainFormat                 { vk::Format::eUndefined };
@@ -64,17 +65,17 @@ namespace SVMV
         vk::raii::Context _context;
 
         vk::raii::Instance _instance                { nullptr };
-        vk::raii::SurfaceKHR _surface               { nullptr };
         vk::raii::DebugUtilsMessengerEXT _messenger { nullptr };
+        vk::raii::SurfaceKHR _surface               { nullptr };
         vk::raii::PhysicalDevice _physicalDevice    { nullptr };
         vk::raii::Device _device                    { nullptr };
         vk::raii::SwapchainKHR _swapchain           { nullptr };
         vk::raii::RenderPass _renderPass            { nullptr };
         vk::raii::CommandPool _commandPool          { nullptr };
         vk::raii::Queue _graphicsQueue              { nullptr };
-        unsigned _graphicsQueueIndex                { 0 };
+        int _graphicsQueueIndex                     { 0 };
         vk::raii::Queue _presentQueue               { nullptr };
-        unsigned _presentQueueIndex                 { 0 };
+        int _presentQueueIndex                      { 0 };
 
         std::vector<vk::raii::ImageView> _imageViews;
         std::vector<vk::raii::Framebuffer> _framebuffers;
@@ -89,5 +90,7 @@ namespace SVMV
 
         VulkanScene _scene;
         VulkanInitilization _initilization;
+
+        std::unordered_map<std::shared_ptr<Primitive>, VulkanDrawable> _primitiveDrawableMap;
     };
 }
