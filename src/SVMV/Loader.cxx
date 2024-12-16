@@ -254,6 +254,8 @@ void Loader::details::processPrimitive(std::shared_ptr<Node> node, const tinyglt
                     finalComponentCount, &fillerValue, tinygltf::GetComponentSizeInBytes(gltfAttribute.componentType), byteStride
                 );
             }
+
+            primitive->attributes.push_back(attribute);
         }
     }
 }

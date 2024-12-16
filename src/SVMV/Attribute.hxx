@@ -16,7 +16,6 @@ namespace SVMV
         UNDEFINED, INDEX, POSITION, NORMAL, TANGENT, TEXCOORD_0, COLOR_0
     };
 
-
     struct Attribute
     {
         AttributeType attributeType{ AttributeType::UNDEFINED };
@@ -26,10 +25,5 @@ namespace SVMV
         size_t size{ 0 };
         size_t count{ 0 };
         int componentCount{ 0 };
-
-        bool operator<(const Attribute& right) const
-        {
-            return type < right.type;
-        }
     };
 }

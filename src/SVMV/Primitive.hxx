@@ -15,7 +15,7 @@ namespace SVMV
 
     struct Primitive
     {
-        std::set<Attribute> attributes;
+        std::vector<Attribute> attributes;
 
         std::shared_ptr<Material> material;
     };
