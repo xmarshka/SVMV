@@ -12,6 +12,7 @@ namespace SVMV
     struct VulkanMaterialContext
     {
         std::vector<VulkanDrawable> drawables;
-        MaterialPipeline* materialPipeline;
+        const vk::raii::Pipeline* pipeline{ nullptr };
+        const vk::raii::PipelineLayout* pipelineLayout{ nullptr };
     };
 }

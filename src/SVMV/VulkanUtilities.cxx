@@ -65,11 +65,10 @@ void VulkanUtilities::ImmediateSubmit::submit(std::function<void(const vk::raii:
     _commandBuffer.end();
 
     vk::SubmitInfo submitInfo;
-    submitInfo.setCommandBufferCount(1);
-    submitInfo.setCommandBuffers(_commandBuffer);
+    submitInfo.setCommandBuffers(*(_commandBuffer));
 
     _queue->submit(submitInfo, _fence);
-    _device->waitForFences(*_fence, true, INT16_MAX);
+    _device->waitForFences(*(_fence), true, INT16_MAX);
 }
 
 VulkanUtilities::DescriptorAllocator::DescriptorAllocator(vk::raii::Device* device)
@@ -101,6 +100,8 @@ VulkanUtilities::DescriptorAllocator& VulkanUtilities::DescriptorAllocator::oper
         other._availablePools.clear();
         other._filledPools.clear();
     }
+
+    return *this;
 }
 
 void VulkanUtilities::DescriptorAllocator::destroyPools()
@@ -132,7 +133,7 @@ vk::raii::DescriptorSet VulkanUtilities::DescriptorAllocator::allocateSet(const 
     vk::DescriptorSetAllocateInfo info = {};
     info.setDescriptorPool(*pool);
     info.setDescriptorSetCount(1);
-    info.setSetLayouts(layout);
+    info.setSetLayouts(*(layout));
 
     vk::raii::DescriptorSets sets(nullptr);
 
@@ -191,7 +192,6 @@ std::shared_ptr<vk::raii::DescriptorPool> VulkanUtilities::DescriptorAllocator::
 
     vk::DescriptorPoolCreateInfo info;
     info.setMaxSets(_setsPerPool);
-    info.setPoolSizeCount(2);
     info.setPoolSizes(poolSizes);
 
     std::shared_ptr<vk::raii::DescriptorPool> pool = std::make_shared<vk::raii::DescriptorPool>(*_device, info);
@@ -319,4 +319,80 @@ VulkanUtilities::VmaAllocatorWrapper::~VmaAllocatorWrapper()
 VmaAllocator VulkanUtilities::VmaAllocatorWrapper::getAllocator() const noexcept
 {
     return _allocator;
+}
+
+vk::raii::Pipeline VulkanUtilities::createPipeline(const vk::raii::Device& device, const vk::raii::PipelineLayout& pipelineLayout, const vk::raii::RenderPass& renderPass, const vk::raii::ShaderModule& vertexShader, const vk::raii::ShaderModule& fragmentShader)
+{
+    vk::PipelineShaderStageCreateInfo shaderStages[2];
+    shaderStages[0].setStage(vk::ShaderStageFlagBits::eVertex);
+    shaderStages[0].setModule(vertexShader);
+    shaderStages[0].setPName("main");
+
+    shaderStages[1].setStage(vk::ShaderStageFlagBits::eFragment);
+    shaderStages[1].setModule(fragmentShader);
+    shaderStages[1].setPName("main");
+
+    vk::PipelineVertexInputStateCreateInfo vertexInputStateInfo;
+    vertexInputStateInfo.setVertexBindingDescriptionCount(0);
+    vertexInputStateInfo.setVertexAttributeDescriptionCount(0);
+
+    vk::PipelineInputAssemblyStateCreateInfo assemblyStateInfo;
+    assemblyStateInfo.setTopology(vk::PrimitiveTopology::eTriangleList);
+    assemblyStateInfo.setPrimitiveRestartEnable(vk::False);
+
+    vk::Viewport viewport;
+    viewport.setX(0.0f);
+    viewport.setY(0.0f);
+    viewport.setWidth(640);
+    viewport.setHeight(480);
+    viewport.setMinDepth(0.0f);
+    viewport.setMaxDepth(1.0f);
+
+    vk::Rect2D scissor;
+    scissor.setOffset(vk::Offset2D(0, 0));
+    scissor.setExtent(vk::Extent2D(640, 480));
+
+    std::vector<vk::DynamicState> dynamicStates = { vk::DynamicState::eViewport, vk::DynamicState::eScissor };
+    vk::PipelineDynamicStateCreateInfo dynamicStateInfo;
+    dynamicStateInfo.setDynamicStates(dynamicStates);
+
+    vk::PipelineViewportStateCreateInfo viewportStateInfo;
+    viewportStateInfo.setViewports(viewport);
+    viewportStateInfo.setScissors(scissor);
+
+    vk::PipelineRasterizationStateCreateInfo rasterizationStateInfo;
+    rasterizationStateInfo.setDepthClampEnable(vk::False);
+    rasterizationStateInfo.setRasterizerDiscardEnable(vk::False);
+    rasterizationStateInfo.setPolygonMode(vk::PolygonMode::eFill);
+    rasterizationStateInfo.setLineWidth(1.0f);
+    rasterizationStateInfo.setCullMode(vk::CullModeFlagBits::eBack);
+    rasterizationStateInfo.setFrontFace(vk::FrontFace::eCounterClockwise);
+    rasterizationStateInfo.setDepthBiasEnable(vk::False);
+
+    vk::PipelineMultisampleStateCreateInfo multisamplingInfo;
+    multisamplingInfo.setSampleShadingEnable(vk::False);
+    multisamplingInfo.setRasterizationSamples(vk::SampleCountFlagBits::e1);
+
+    vk::PipelineColorBlendAttachmentState colorBlendAttachmentState;
+    colorBlendAttachmentState.setColorWriteMask(vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA);
+    colorBlendAttachmentState.setBlendEnable(vk::False);
+
+    vk::PipelineColorBlendStateCreateInfo colorBlendStateInfo;
+    colorBlendStateInfo.setLogicOpEnable(vk::False);
+    colorBlendStateInfo.setAttachments(colorBlendAttachmentState);
+
+    vk::GraphicsPipelineCreateInfo pipelineInfo;
+    pipelineInfo.setStages(shaderStages);
+    pipelineInfo.setPVertexInputState(&vertexInputStateInfo);
+    pipelineInfo.setPInputAssemblyState(&assemblyStateInfo);
+    pipelineInfo.setPViewportState(&viewportStateInfo);
+    pipelineInfo.setPRasterizationState(&rasterizationStateInfo);
+    pipelineInfo.setPMultisampleState(&multisamplingInfo);
+    pipelineInfo.setPColorBlendState(&colorBlendStateInfo);
+    pipelineInfo.setPDynamicState(&dynamicStateInfo);
+    pipelineInfo.setLayout(pipelineLayout);
+    pipelineInfo.setRenderPass(renderPass);
+    pipelineInfo.setSubpass(0);
+
+    return vk::raii::Pipeline(device, nullptr, pipelineInfo);
 }

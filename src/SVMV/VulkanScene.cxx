@@ -151,52 +151,52 @@
 //    }
 //}
 //
-void VulkanScene::createDrawablesFromScene(std::shared_ptr<Scene> scene, std::shared_ptr<Node> rootNode)
-{
-    if (rootNode->mesh)
-    {
-        for (const auto& primitive : rootNode->mesh->primitives)
-        {
-            VulkanDrawable drawable;
-            drawable.modelMatrix = rootNode->transform;
-
-            // TODO: change this to not force GLTFPBR
-            std::unique_ptr<VulkanDrawableCollection>& collection = _collectionMap[MaterialName::GLTFPBR];
-
-            if (primitiveDrawableMap.find(primitive) == primitiveDrawableMap.end()) // this primitive has not been processed yet
-            {
-                drawable.firstIndex = collection->indices.dataOffset; // TODO: this needs to be set properly, requires a seperate field in collection probably
-                drawable.indexCount = primitive->indices.size();
-
-                //drawable.materialInstance = _GLTFPBRMaterial.generateMaterialInstance(primitive->material, _descriptorAllocator);
-
-                drawable.addresses.positions = collection->positions.bufferAddress + collection->positions.dataOffset * sizeof(float);
-                drawable.addresses.normals = collection->normals.bufferAddress + collection->normals.dataOffset * sizeof(float);
-                drawable.addresses.tangents = collection->tangents.bufferAddress + collection->tangents.dataOffset * sizeof(float);
-                drawable.addresses.texcoords_0 = collection->texcoords_0.bufferAddress + collection->texcoords_0.dataOffset * sizeof(float);
-                drawable.addresses.colors_0 = collection->colors_0.bufferAddress + collection->colors_0.dataOffset * sizeof(float);
-
-                loadPrimitiveAttributeDataToBuffer(collection, primitive);
-
-                primitiveDrawableMap[primitive] = drawable;
-            }
-            else
-            {
-                drawable.firstIndex = primitiveDrawableMap[primitive].firstIndex;
-                drawable.indexCount = primitiveDrawableMap[primitive].indexCount;
-
-                drawable.materialInstance = primitiveDrawableMap[primitive].materialInstance;
-            }
-
-            collection->drawables.emplace_back(drawable);
-        }
-    }
-
-    for (const auto& childNode : rootNode->children)
-    {
-        createDrawablesFromScene(scene, childNode);
-    }
-}
+//void VulkanScene::createDrawablesFromScene(std::shared_ptr<Scene> scene, std::shared_ptr<Node> rootNode)
+//{
+//    if (rootNode->mesh)
+//    {
+//        for (const auto& primitive : rootNode->mesh->primitives)
+//        {
+//            VulkanDrawable drawable;
+//            drawable.modelMatrix = rootNode->transform;
+//
+//            // TODO: change this to not force GLTFPBR
+//            std::unique_ptr<VulkanDrawableCollection>& collection = _collectionMap[MaterialName::GLTFPBR];
+//
+//            if (primitiveDrawableMap.find(primitive) == primitiveDrawableMap.end()) // this primitive has not been processed yet
+//            {
+//                drawable.firstIndex = collection->indices.dataOffset; // TODO: this needs to be set properly, requires a seperate field in collection probably
+//                drawable.indexCount = primitive->indices.size();
+//
+//                //drawable.materialInstance = _GLTFPBRMaterial.generateMaterialInstance(primitive->material, _descriptorAllocator);
+//
+//                drawable.addresses.positions = collection->positions.bufferAddress + collection->positions.dataOffset * sizeof(float);
+//                drawable.addresses.normals = collection->normals.bufferAddress + collection->normals.dataOffset * sizeof(float);
+//                drawable.addresses.tangents = collection->tangents.bufferAddress + collection->tangents.dataOffset * sizeof(float);
+//                drawable.addresses.texcoords_0 = collection->texcoords_0.bufferAddress + collection->texcoords_0.dataOffset * sizeof(float);
+//                drawable.addresses.colors_0 = collection->colors_0.bufferAddress + collection->colors_0.dataOffset * sizeof(float);
+//
+//                loadPrimitiveAttributeDataToBuffer(collection, primitive);
+//
+//                primitiveDrawableMap[primitive] = drawable;
+//            }
+//            else
+//            {
+//                drawable.firstIndex = primitiveDrawableMap[primitive].firstIndex;
+//                drawable.indexCount = primitiveDrawableMap[primitive].indexCount;
+//
+//                drawable.materialInstance = primitiveDrawableMap[primitive].materialInstance;
+//            }
+//
+//            collection->drawables.emplace_back(drawable);
+//        }
+//    }
+//
+//    for (const auto& childNode : rootNode->children)
+//    {
+//        createDrawablesFromScene(scene, childNode);
+//    }
+//}
 //
 //void VulkanScene::loadPrimitiveAttributeDataToBuffer(const std::unique_ptr<VulkanDrawableCollection>& collection, std::shared_ptr<Primitive> primitive) // TODO: make this accept MaterialName instead of the collection ptr reference
 //{

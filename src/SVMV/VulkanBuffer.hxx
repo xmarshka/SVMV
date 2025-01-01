@@ -13,7 +13,7 @@ namespace SVMV
     {
     public:
         VulkanBuffer() = default;
-        VulkanBuffer(vk::raii::Device* device, VmaAllocator vmaAllocator, size_t bufferSize, vk::Flags<vk::BufferUsageFlagBits> bufferUsage, VmaMemoryUsage vmaMemoryUsage, bool createMapped = false);
+        VulkanBuffer(vk::raii::Device* device, VmaAllocator vmaAllocator, size_t bufferSize, vk::Flags<vk::BufferUsageFlagBits> bufferUsage, bool enableWriting = false);
 
         VulkanBuffer(const VulkanBuffer&) = delete;
         VulkanBuffer& operator=(const VulkanBuffer&) = delete;
@@ -25,9 +25,10 @@ namespace SVMV
 
         operator bool() const;
 
-        [[nodiscard]] const vk::raii::Buffer& getBuffer() const;
+        [[nodiscard]] const vk::raii::Buffer& getBuffer() const; // TODO: noexcept
         [[nodiscard]] const VmaAllocator getAllocator() const;
         [[nodiscard]] const VmaAllocation getAllocation() const;
+        [[nodiscard]] const size_t getSize() const;
         [[nodiscard]] const vk::DeviceAddress getAddress(const vk::Device& device) const;
 
     protected:
@@ -35,6 +36,8 @@ namespace SVMV
 
         VmaAllocator _allocator{ nullptr };
         VmaAllocation _allocation{ nullptr };
+
+        size_t _size{ 0 };
     };
 
     // GPU BUFFER
@@ -77,7 +80,7 @@ namespace SVMV
         void copyToBuffer(const VulkanBuffer& destination, size_t sizeToCopy, size_t offset = 0);
 
     private:
-        uint8_t* _mappedData;
+        std::byte* _mappedData{ nullptr };
 
         VulkanUtilities::ImmediateSubmit* _immediateSubmit{ nullptr };
         size_t _capacity{ 0 };

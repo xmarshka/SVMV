@@ -108,5 +108,7 @@ namespace SVMV
         private:
             VmaAllocator _allocator{ nullptr };
         };
+
+        vk::raii::Pipeline createPipeline(const vk::raii::Device& device, const vk::raii::PipelineLayout& pipelineLayout, const vk::raii::RenderPass& renderPass, const vk::raii::ShaderModule& vertexShader, const vk::raii::ShaderModule& fragmentShader);
     }
 }

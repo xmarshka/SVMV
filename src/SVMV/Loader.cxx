@@ -131,66 +131,62 @@ void Loader::details::processPrimitive(std::shared_ptr<Node> node, const tinyglt
     std::shared_ptr<Primitive> primitive = std::make_shared<Primitive>();
     node->mesh->primitives.emplace_back(primitive);
 
-    if (gltfPrimitive.material != -1)
+    /*if (gltfPrimitive.material != -1)
     {
         processMaterial(primitive, gltfModel->materials[gltfPrimitive.material]);
     }
     else
     {
         primitive->material = createDefaultMaterial();
-    }
+    }*/
+
+    // TODO: TEMP
+    primitive->material = std::make_shared<Material>();
+    primitive->material->materialTypeName = "glTFPBR";
 
     if (gltfPrimitive.indices != -1)
     {
         tinygltf::Accessor gltfIndices = gltfModel->accessors[gltfPrimitive.indices];
         tinygltf::BufferView gltfBufferView = gltfModel->bufferViews[gltfIndices.bufferView];
 
-        Attribute attribute;
-        attribute.attributeType = AttributeType::INDEX;
-        attribute.type = Type::UINT32;
-        attribute.size = gltfIndices.count * sizeof(uint32_t);
-        attribute.count = gltfIndices.count;
-        attribute.componentCount = 1;
+        int byteStride = (gltfBufferView.byteStride == 0) ? tinygltf::GetComponentSizeInBytes(gltfIndices.componentType) : gltfBufferView.byteStride;
 
-        attribute.elements = std::make_unique_for_overwrite<std::byte[]>(gltfIndices.count * sizeof(uint32_t));
+        primitive->indices.reserve(gltfIndices.count);
 
         switch (gltfIndices.componentType)
         {
-        case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT:
+        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
         {
-            uint32_t* destination = reinterpret_cast<uint32_t*>(attribute.elements.get());
             std::byte* source = reinterpret_cast<std::byte*>(gltfModel->buffers[gltfBufferView.buffer].data.data() + gltfIndices.byteOffset + gltfBufferView.byteOffset);
 
             for (int i = 0; i < gltfIndices.count; i++)
             {
-                destination[i] = *(reinterpret_cast<uint32_t*>(source));
-                source += gltfBufferView.byteStride;
+                primitive->indices.push_back(*(reinterpret_cast<uint32_t*>(source)));
+                source += byteStride;
             }
         }
             break;
 
-        case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT:
+        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
         {
-            uint32_t* destination = reinterpret_cast<uint32_t*>(attribute.elements.get());
             std::byte* source = reinterpret_cast<std::byte*>(gltfModel->buffers[gltfBufferView.buffer].data.data() + gltfIndices.byteOffset + gltfBufferView.byteOffset);
 
             for (int i = 0; i < gltfIndices.count; i++)
             {
-                destination[i] = *(reinterpret_cast<uint16_t*>(source));
-                source += gltfBufferView.byteStride;
+                primitive->indices.push_back(*(reinterpret_cast<uint16_t*>(source)));
+                source += byteStride;
             }
         }
             break;
 
-        case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE:
+        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
         {
-            uint32_t* destination = reinterpret_cast<uint32_t*>(attribute.elements.get());
             std::byte* source = reinterpret_cast<std::byte*>(gltfModel->buffers[gltfBufferView.buffer].data.data() + gltfIndices.byteOffset + gltfBufferView.byteOffset);
 
             for (int i = 0; i < gltfIndices.count; i++)
             {
-                destination[i] = *(reinterpret_cast<uint8_t*>(source));
-                source += gltfBufferView.byteStride;
+                primitive->indices.push_back(*(reinterpret_cast<uint8_t*>(source)));
+                source += byteStride;
             }
         }
             break;
@@ -211,6 +207,7 @@ void Loader::details::processPrimitive(std::shared_ptr<Node> node, const tinyglt
             tinygltf::BufferView gltfBufferView = gltfModel->bufferViews[gltfAttribute.bufferView];
 
             int finalComponentCount = (attributeName == "COLOR_0") ? 4 : tinygltf::GetNumComponentsInType(gltfAttribute.type);
+            int byteStride = (gltfBufferView.byteStride == 0) ? (tinygltf::GetComponentSizeInBytes(gltfAttribute.componentType) * finalComponentCount) : gltfBufferView.byteStride;
 
             Attribute attribute;
             attribute.attributeType = convertAttributeName(attributeName);
@@ -224,19 +221,18 @@ void Loader::details::processPrimitive(std::shared_ptr<Node> node, const tinyglt
             std::unique_ptr<float[]> denormalized = nullptr;
 
             std::byte* source = reinterpret_cast<std::byte*>(gltfModel->buffers[gltfBufferView.buffer].data.data() + gltfAttribute.byteOffset + gltfBufferView.byteOffset);
-            int byteStride = gltfBufferView.byteStride;
 
             if (gltfAttribute.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
             {
                 denormalized = getDenormalizedByteAccessorData(reinterpret_cast<uint8_t*>(source), gltfAttribute.count, tinygltf::GetNumComponentsInType(gltfAttribute.type), gltfBufferView.byteStride);
                 source = reinterpret_cast<std::byte*>(denormalized.get());
-                byteStride = 0;
+                byteStride = sizeof(float) * finalComponentCount;
             }
             else if (gltfAttribute.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
             {
                 denormalized = getDenormalizedShortAccessorData(reinterpret_cast<uint16_t*>(source), gltfAttribute.count, tinygltf::GetNumComponentsInType(gltfAttribute.type), gltfBufferView.byteStride);
                 source = reinterpret_cast<std::byte*>(denormalized.get());
-                byteStride = 0;
+                byteStride = sizeof(float) * finalComponentCount;
             }
 
             if (finalComponentCount == tinygltf::GetNumComponentsInType(gltfAttribute.type))
@@ -255,14 +251,14 @@ void Loader::details::processPrimitive(std::shared_ptr<Node> node, const tinyglt
                 );
             }
 
-            primitive->attributes.push_back(attribute);
+            primitive->attributes.push_back(std::move(attribute));
         }
     }
 }
 
 void Loader::details::processMaterial(std::shared_ptr<Primitive> primitive, const tinygltf::Material& gltfMaterial)
 {
-    std::shared_ptr<Material> material = std::make_shared<Material>();
+    /*std::shared_ptr<Material> material = std::make_shared<Material>();
 
     for (int i = 0; i < material->baseColorFactor.length(); i++)
     {
@@ -277,14 +273,14 @@ void Loader::details::processMaterial(std::shared_ptr<Primitive> primitive, cons
         processTexture(material->diffuseTexture, gltfMaterial.pbrMetallicRoughness.baseColorTexture);
     }
 
-    primitive->material = material;
+    primitive->material = material;*/
 }
 
 std::shared_ptr<Material> Loader::details::createDefaultMaterial()
 {
     std::shared_ptr<Material> material = std::make_shared<Material>();
 
-    material->baseColorFactor = glm::fvec4(1.0f);
+    /*material->baseColorFactor = glm::fvec4(1.0f);
     material->metallicFactor = 0.0f;
     material->roughnessFactor = 1.0f;
 
@@ -293,7 +289,7 @@ std::shared_ptr<Material> Loader::details::createDefaultMaterial()
 
     material->normalTexture = nullptr;
     material->occlusionTexture = nullptr;
-    material->emissiveTexture = nullptr;
+    material->emissiveTexture = nullptr;*/
 
     return material;
 }
@@ -326,6 +322,9 @@ void Loader::details::processTexture(std::shared_ptr<Texture> texture, const tin
 
 void Loader::details::copyAccessorToDestination(std::byte* source, std::byte* destination, size_t count, size_t componentCount, size_t componentSize, size_t byteStride)
 {
+    float* testing = reinterpret_cast<float*>(source);
+    float* testing2 = reinterpret_cast<float*>(destination);
+
     for (int i = 0; i < count; i++)
     {
         memcpy(destination, source, componentCount * componentSize);
@@ -358,11 +357,11 @@ std::unique_ptr<float[]> Loader::details::getDenormalizedByteAccessorData(uint8_
 
     size_t maximum = std::powl(2, sizeof(uint8_t) * 8) - 1;
 
-    for (int i = 0; i < count; i++)
+    for (int i = 0; i < count * componentCount; i += componentCount)
     {
         for (int j = 0; j < componentCount; j++)
         {
-            data.get()[i] = static_cast<float>(source[j]) / maximum;
+            data.get()[i + j] = static_cast<float>(source[j]) / maximum;
         }
 
         source += byteStride;
@@ -373,6 +372,8 @@ std::unique_ptr<float[]> Loader::details::getDenormalizedByteAccessorData(uint8_
 
 std::unique_ptr<float[]> Loader::details::getDenormalizedShortAccessorData(uint16_t* source, size_t count, size_t componentCount, size_t byteStride)
 {
+    // TODO: assert byteStride is a multiple of: sizeof(uint16_t) * componentCount 
+
     std::unique_ptr<float[]> data = std::make_unique_for_overwrite<float[]>(count * componentCount);
 
     size_t maximum = std::powl(2, sizeof(uint16_t) * 8) - 1;

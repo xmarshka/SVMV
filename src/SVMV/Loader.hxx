@@ -12,6 +12,7 @@
 #include <SVMV/Primitive.hxx>
 #include <SVMV/Attribute.hxx>
 #include <SVMV/Material.hxx>
+#include <SVMV/Property.hxx>
 #include <SVMV/Texture.hxx>
 
 #include <memory>
@@ -26,6 +27,7 @@ namespace SVMV
     namespace Loader
     {
         std::shared_ptr<Scene> loadScene(const std::string& filePath);
+        void appendScene(std::shared_ptr<Scene> scene, const std::string& filePath, glm::mat4 appendedSceneTransformOffset = glm::mat4(0.0f)); // TODO
 
         namespace details
         {

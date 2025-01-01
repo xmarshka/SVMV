@@ -7,9 +7,19 @@
 
 #include <GLFW/glfw3.h>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 #include <SVMV/Scene.hxx>
+#include <SVMV/Node.hxx>
+#include <SVMV/Mesh.hxx>
+#include <SVMV/Primitive.hxx>
+#include <SVMV/Attribute.hxx>
 #include <SVMV/VulkanInitialization.hxx>
 #include <SVMV/VulkanScene.hxx>
+#include <SVMV/VulkanBuffer.hxx>
+#include <SVMV/VulkanShaderStructures.hxx>
 
 #include <memory>
 #include <vector>
@@ -37,10 +47,14 @@ namespace SVMV
 
         void loadScene(std::shared_ptr<Scene> scene);
 
+        // TODO: setCamera();
+
         [[nodiscard]] const vk::Device getDevice() const noexcept;
         [[nodiscard]] GLFWwindow* getWindow() const noexcept;
 
     private:
+        void recordDrawCommands(const vk::raii::CommandBuffer& commandBuffer, const vk::raii::Framebuffer& framebuffer);
+
         void preprocessScene(std::shared_ptr<Scene> scene); // TODO: generate material contexts and materials that appear in the scene, get attribute sizes and create the buffers in VulkanScene
         void generateDrawablesFromScene(std::shared_ptr<Node> node, glm::mat4 baseTransform); // TODO: generate drawables and load mesh data to staging buffers, recursive
         void copyStagingBuffersToGPUBuffers(); // TODO: in the name
@@ -77,6 +91,8 @@ namespace SVMV
         vk::raii::Queue _presentQueue               { nullptr };
         int _presentQueueIndex                      { 0 };
 
+        vk::raii::CommandBuffers _drawCommandBuffers{ nullptr };
+
         std::vector<vk::raii::ImageView> _imageViews;
         std::vector<vk::raii::Framebuffer> _framebuffers;
 
@@ -90,7 +106,5 @@ namespace SVMV
 
         VulkanScene _scene;
         VulkanInitilization _initilization;
-
-        std::unordered_map<std::shared_ptr<Primitive>, VulkanDrawable> _primitiveDrawableMap;
     };
 }

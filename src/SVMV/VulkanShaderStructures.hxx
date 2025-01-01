@@ -9,16 +9,16 @@ namespace SVMV
     {
         struct VertexAttributeAddresses
         {
-            vk::DeviceAddress positions;
-            vk::DeviceAddress normals;
-            vk::DeviceAddress tangents;
-            vk::DeviceAddress texcoords_0;
-            vk::DeviceAddress colors_0;
+            vk::DeviceAddress positions{ 0 };
+            vk::DeviceAddress normals{ 0 };
+            vk::DeviceAddress tangents{ 0 };
+            vk::DeviceAddress texcoords_0{ 0 };
+            vk::DeviceAddress colors_0{ 0 };
         };
 
         struct PushConstants
         {
-            glm::mat4 mvpMatrix;
+            glm::mat4 mvpMatrix{ 1.0f };
             VertexAttributeAddresses addresses;
         };
     }

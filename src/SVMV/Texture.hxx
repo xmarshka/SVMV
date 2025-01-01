@@ -4,9 +4,8 @@
 
 namespace SVMV
 {
-    class Texture
+    struct Texture
     {
-    public:
         unsigned width;
         unsigned height;
 

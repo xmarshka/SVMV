@@ -5,21 +5,19 @@
 
 namespace SVMV
 {
-    enum class MaterialName
-    {
-        GLTFPBR, Other
-    };
+    //enum class MaterialName
+    //{
+    //    GLTFPBR, Other
+    //};
 
-    struct MaterialPipeline
-    {
-        vk::raii::Pipeline pipeline;
-        vk::raii::PipelineLayout layout;
-    };
+    //struct MaterialPipeline
+    //{
+    //    vk::raii::Pipeline pipeline;
+    //    vk::raii::PipelineLayout layout;
+    //};
 
-    struct MaterialInstance
-    {
-        vk::raii::DescriptorSet descriptorSet;
-
-        MaterialName materialName;
-    };
+    //struct MaterialInstance
+    //{
+    //    vk::raii::DescriptorSet descriptorSet;
+    //};
 }

@@ -15,6 +15,7 @@ namespace SVMV
 
     struct Primitive
     {
+        std::vector<uint32_t> indices;
         std::vector<Attribute> attributes;
 
         std::shared_ptr<Material> material;

@@ -2,7 +2,7 @@
 
 using namespace SVMV;
 
-VulkanBuffer::VulkanBuffer(vk::raii::Device* device, VmaAllocator vmaAllocator, size_t bufferSize, vk::Flags<vk::BufferUsageFlagBits> bufferUsage, VmaMemoryUsage vmaMemoryUsage, bool createMapped) : _buffer(nullptr)
+VulkanBuffer::VulkanBuffer(vk::raii::Device* device, VmaAllocator vmaAllocator, size_t bufferSize, vk::Flags<vk::BufferUsageFlagBits> bufferUsage, bool enableWriting/* = false*/)
 {
     _allocator = vmaAllocator;
 
@@ -11,10 +11,10 @@ VulkanBuffer::VulkanBuffer(vk::raii::Device* device, VmaAllocator vmaAllocator, 
     bufferCreateInfo.setUsage(bufferUsage);
 
     VmaAllocationCreateInfo vmaAllocationInfo = {};
-    vmaAllocationInfo.usage = vmaMemoryUsage;
-    if (createMapped)
+    vmaAllocationInfo.usage = VMA_MEMORY_USAGE_AUTO;
+    if (enableWriting)
     {
-        vmaAllocationInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
+        vmaAllocationInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT;
     }
 
     VkBuffer temporaryBuffer = {};
@@ -28,33 +28,38 @@ VulkanBuffer::VulkanBuffer(vk::raii::Device* device, VmaAllocator vmaAllocator, 
     }
 
     _buffer = vk::raii::Buffer(*device, temporaryBuffer);
+    _size = bufferSize;
 }
 
-VulkanBuffer::VulkanBuffer(VulkanBuffer&& other) : _buffer(nullptr)
+VulkanBuffer::VulkanBuffer(VulkanBuffer&& other) noexcept
 {
     this->_buffer = std::move(other._buffer);
     this->_allocation = other._allocation;
     this->_allocator = other._allocator;
+    this->_size = other._size;
 
     other._allocation = nullptr;
     other._allocator = nullptr;
+    other._size = 0;
 }
 
-VulkanBuffer& VulkanBuffer::operator=(VulkanBuffer&& other)
+VulkanBuffer& VulkanBuffer::operator=(VulkanBuffer&& other) noexcept
 {
     if (this != &other)
     {
-        if (*_buffer != nullptr)
+        if (*this->_buffer != nullptr)
         {
-            vmaDestroyBuffer(_allocator, *_buffer, _allocation); // NOTE: is this ok with the raii buffer? its destructor is called after...
+            vmaDestroyBuffer(this->_allocator, *this->_buffer, this->_allocation); // NOTE: is this ok with the raii buffer? its destructor is called after...
         }
 
         this->_buffer = std::move(other._buffer);
         this->_allocation = other._allocation;
         this->_allocator = other._allocator;
+        this->_size = other._size;
 
         other._allocation = nullptr;
         other._allocator = nullptr;
+        other._size = 0;
     }
 
     return *this;
@@ -88,6 +93,11 @@ const VmaAllocation VulkanBuffer::getAllocation() const
     return _allocation;
 }
 
+const size_t VulkanBuffer::getSize() const
+{
+    return _size;
+}
+
 const vk::DeviceAddress VulkanBuffer::getAddress(const vk::Device& device) const
 {
     vk::BufferDeviceAddressInfo deviceAddressInfo;
@@ -97,7 +107,7 @@ const vk::DeviceAddress VulkanBuffer::getAddress(const vk::Device& device) const
 }
 
 VulkanGPUBuffer::VulkanGPUBuffer(vk::raii::Device* device, VmaAllocator vmaAllocator, size_t bufferSize, vk::Flags<vk::BufferUsageFlagBits> bufferUsage)
-    : VulkanBuffer(device, vmaAllocator, bufferSize, bufferUsage, VMA_MEMORY_USAGE_GPU_ONLY)
+    : VulkanBuffer(device, vmaAllocator, bufferSize, bufferUsage)
 {}
 
 VulkanGPUBuffer::VulkanGPUBuffer(VulkanGPUBuffer&& other) noexcept
@@ -106,39 +116,41 @@ VulkanGPUBuffer::VulkanGPUBuffer(VulkanGPUBuffer&& other) noexcept
 
 VulkanGPUBuffer& VulkanGPUBuffer::operator=(VulkanGPUBuffer&& other) noexcept
 {
-    VulkanBuffer::operator=(std::move(other));
+    if (this != &other)
+    {
+        VulkanBuffer::operator=(std::move(other));
+    }
+
     return *this;
 }
 
 VulkanStagingBuffer::VulkanStagingBuffer(vk::raii::Device* device, VulkanUtilities::ImmediateSubmit* immediateSubmit, VmaAllocator vmaAllocator, size_t bufferSize)
-    : VulkanBuffer(device, vmaAllocator, bufferSize, vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_ONLY)
+    : VulkanBuffer(device, vmaAllocator, bufferSize, vk::BufferUsageFlagBits::eTransferSrc, true)
     , _immediateSubmit(immediateSubmit)
 {
     _capacity = bufferSize;
 
-    VmaAllocationInfo allocationInfo = {};
-    vmaGetAllocationInfo(_allocator, _allocation, &allocationInfo);
-    _mappedData = reinterpret_cast<uint8_t*>(allocationInfo.pMappedData);
+    vmaMapMemory(_allocator, _allocation, reinterpret_cast<void**>(&_mappedData));
 }
 
 VulkanStagingBuffer::VulkanStagingBuffer(vk::raii::Device* device, const VulkanBuffer& destinationBuffer, VulkanUtilities::ImmediateSubmit* immediateSubmit)
-    : VulkanBuffer(device, destinationBuffer.getAllocator(), destinationBuffer.getAllocation()->GetSize(), vk::BufferUsageFlagBits::eTransferSrc, VMA_MEMORY_USAGE_CPU_TO_GPU, true)
+    : VulkanBuffer(device, destinationBuffer.getAllocator(), destinationBuffer.getSize(), vk::BufferUsageFlagBits::eTransferSrc, true)
     , _immediateSubmit(immediateSubmit)
 {
-    _capacity = destinationBuffer.getAllocation()->GetSize();
+    _capacity = destinationBuffer.getSize();
 
-    VmaAllocationInfo allocationInfo = {};
-    vmaGetAllocationInfo(_allocator, _allocation, &allocationInfo);
-    _mappedData = reinterpret_cast<uint8_t*>(allocationInfo.pMappedData);
+    vmaMapMemory(_allocator, _allocation, reinterpret_cast<void**>(&_mappedData));
 }
 
 VulkanStagingBuffer::VulkanStagingBuffer(VulkanStagingBuffer&& other) noexcept
     : VulkanBuffer(std::move(other))
 {
+    this->_mappedData = other._mappedData;
     this->_immediateSubmit = other._immediateSubmit;
     this->_capacity = other._capacity;
     this->_filledSize = other._filledSize;
 
+    other._mappedData = 0;
     other._immediateSubmit = nullptr;
     other._capacity = 0;
     other._filledSize = 0;
@@ -146,22 +158,35 @@ VulkanStagingBuffer::VulkanStagingBuffer(VulkanStagingBuffer&& other) noexcept
 
 VulkanStagingBuffer& VulkanStagingBuffer::operator=(VulkanStagingBuffer&& other) noexcept
 {
-    VulkanBuffer::operator=(std::move(other));
+    if (this != &other)
+    {
+        if (this->_allocator != nullptr && this->_allocation != nullptr)
+        {
+            vmaUnmapMemory(other._allocator, other._allocation);
+        }
 
-    this->_immediateSubmit = other._immediateSubmit;
-    this->_capacity = other._capacity;
-    this->_filledSize = other._filledSize;
+        VulkanBuffer::operator=(std::move(other));
 
-    other._immediateSubmit = nullptr;
-    other._capacity = 0;
-    other._filledSize = 0;
+        this->_mappedData = other._mappedData;
+        this->_immediateSubmit = other._immediateSubmit;
+        this->_capacity = other._capacity;
+        this->_filledSize = other._filledSize;
+
+        other._mappedData = 0;
+        other._immediateSubmit = nullptr;
+        other._capacity = 0;
+        other._filledSize = 0;
+    }
 
     return *this;
 }
 
 VulkanStagingBuffer::~VulkanStagingBuffer()
 {
-    vmaUnmapMemory(_allocator, _allocation);
+    if (_allocator != nullptr && _allocation != nullptr)
+    {
+        vmaUnmapMemory(_allocator, _allocation);
+    }
 }
 
 void VulkanStagingBuffer::pushData(void* data, size_t size)
@@ -172,7 +197,7 @@ void VulkanStagingBuffer::pushData(void* data, size_t size)
 
 void VulkanStagingBuffer::copyToBuffer(const VulkanBuffer& destination)
 {
-    copyToBuffer(destination, destination.getAllocation()->GetSize());
+    copyToBuffer(destination, _size);
 }
 
 void VulkanStagingBuffer::copyToBuffer(const VulkanBuffer& destination, size_t sizeToCopy, size_t offset/* = 0*/)

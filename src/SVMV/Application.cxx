@@ -11,7 +11,7 @@ Application::Application(int width, int height, const std::string& name)
 
 void Application::initialize(int width, int height, const std::string& name)
 {
-    _renderer.loadScene(Loader::loadScene(RESOURCE_DIR"/models/shapes.gltf"));
+    _renderer.loadScene(Loader::loadScene(RESOURCE_DIR"/models/Box.gltf"));
 }
 
 void Application::loop()

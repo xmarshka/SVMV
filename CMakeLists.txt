@@ -29,6 +29,7 @@ set(SVMV_INCLUDES
 	${SRC_DIR}/Primitive.hxx
 	${SRC_DIR}/Attribute.hxx
 	${SRC_DIR}/Material.hxx
+	${SRC_DIR}/Property.hxx
 	${SRC_DIR}/Texture.hxx)
 
 set(SVMV_SOURCES

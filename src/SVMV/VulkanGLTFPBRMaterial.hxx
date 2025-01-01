@@ -21,16 +21,7 @@ namespace SVMV
 {
     class GLTFPBRMaterial
     {
-    private:
-        vk::raii::Device* _device;
-        VmaAllocator _memoryAllocator;
-        VulkanUtilities::ImmediateSubmit* _immediateSubmit;
-        VulkanUtilities::DescriptorAllocator* _descriptorAllocator;
-
-        vk::raii::Pipeline _pipeline;
-        vk::raii::PipelineLayout _pipelineLayout;
-        vk::raii::DescriptorSetLayout _descriptorSetLayout;
-
+    public:
         struct MaterialUniformParameters
         {
             glm::vec4 baseColorFactor;
@@ -40,26 +31,41 @@ namespace SVMV
 
         struct MaterialResources
         {
-            std::shared_ptr<VulkanImage> colorImage;
+            VulkanImage colorImage;
             vk::raii::Sampler colorSampler;
-            std::shared_ptr<VulkanBuffer> buffer;
+            VulkanBuffer buffer;
         };
 
-        std::vector<MaterialResources> _resources;
-        std::vector<std::shared_ptr<MaterialInstance>> _instances;
-
     public:
-        GLTFPBRMaterial();
-        GLTFPBRMaterial(vk::raii::Device* device, VmaAllocator allocator, const vk::raii::RenderPass& renderPass, const vk::Extent2D& extent, VulkanUtilities::DescriptorAllocator* descriptorAllocator);
-        ~GLTFPBRMaterial();
+        GLTFPBRMaterial() = default;
+        GLTFPBRMaterial(vk::raii::Device* device, VmaAllocator allocator, const vk::raii::RenderPass& renderPass, VulkanUtilities::DescriptorAllocator* descriptorAllocator, const shaderc::Compiler& compiler);
 
-        void initialize(vk::raii::Device* device, VmaAllocator allocator, const vk::raii::RenderPass& renderPass, const vk::Extent2D& extent, VulkanUtilities::DescriptorAllocator* descriptorAllocator);
-        void free();
+        GLTFPBRMaterial(const GLTFPBRMaterial&) = delete;
+        GLTFPBRMaterial& operator=(const GLTFPBRMaterial&) = delete;
 
-        std::shared_ptr<MaterialInstance> generateMaterialInstance(std::shared_ptr<Material> material);
-        MaterialPipeline getMaterialPipeline();
+        GLTFPBRMaterial(GLTFPBRMaterial&& other) noexcept;
+        GLTFPBRMaterial& operator=(GLTFPBRMaterial&& other) noexcept;
+
+        ~GLTFPBRMaterial() = default;
+
+        std::shared_ptr<vk::raii::DescriptorSet> createDescriptorSet(std::shared_ptr<Material> material);
+
+        const vk::raii::Pipeline* getPipeline() const;
+        const vk::raii::PipelineLayout* getPipelineLayout() const;
 
     private:
-        void generatePipeline(const vk::raii::RenderPass& renderPass, const vk::Extent2D& extent);
+        vk::raii::Device* _device{ nullptr };
+        VmaAllocator _memoryAllocator{ nullptr };
+        VulkanUtilities::ImmediateSubmit* _immediateSubmit{ nullptr };
+        VulkanUtilities::DescriptorAllocator* _descriptorAllocator{ nullptr };
+
+        vk::raii::Pipeline _pipeline{ nullptr };
+        vk::raii::PipelineLayout _pipelineLayout{ nullptr };
+        vk::raii::DescriptorSetLayout _descriptorSetLayout{ nullptr };
+
+        VulkanShader _vertexShader;
+        VulkanShader _fragmentShader;
+
+        std::vector<MaterialResources> _resources;
     };
 }

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <SVMV/Attribute.hxx>
+
 #include <vulkan/vulkan.hpp>
 #include <glm/glm.hpp>
 
@@ -8,15 +10,13 @@
 
 namespace SVMV
 {
-    struct MaterialInstance;
-
     struct AttributeAddresses
     {
-        vk::DeviceAddress positions;
-        vk::DeviceAddress normals;
-        vk::DeviceAddress tangents;
-        vk::DeviceAddress texcoords_0;
-        vk::DeviceAddress colors_0;
+        vk::DeviceAddress positions{ 0 };
+        vk::DeviceAddress normals{ 0 };
+        vk::DeviceAddress tangents{ 0 };
+        vk::DeviceAddress texcoords_0{ 0 };
+        vk::DeviceAddress colors_0{ 0 };
     };
 
     struct VulkanDrawable
@@ -26,8 +26,32 @@ namespace SVMV
 
         AttributeAddresses addresses;
 
-        glm::mat4 modelMatrix;
+        glm::mat4 modelMatrix{ 1.0f };
 
-        std::shared_ptr<MaterialInstance> materialInstance;
+        std::shared_ptr<vk::raii::DescriptorSet> descriptorSet;
+
+        void setAddress(AttributeType type, vk::DeviceAddress value)
+        {
+            switch (type)
+            {
+            case AttributeType::POSITION:
+                addresses.positions = value;
+                break;
+            case AttributeType::NORMAL:
+                addresses.normals = value;
+                break;
+            case AttributeType::TANGENT:
+                addresses.tangents = value;
+                break;
+            case AttributeType::TEXCOORD_0:
+                addresses.texcoords_0 = value;
+                break;
+            case AttributeType::COLOR_0:
+                addresses.colors_0 = value;
+                break;
+            default:
+                return;
+            }
+        }
     };
 }

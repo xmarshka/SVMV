@@ -217,11 +217,11 @@ vk::raii::PhysicalDevice VulkanInitilization::createPhysicalDevice(const vk::rai
         selector.add_required_extension(extension);
     }
 
-    //vk::PhysicalDeviceVulkan12Features features = {};
-    //features.sType = vk::StructureType::ePhysicalDeviceVulkan12Features;
-    //features.bufferDeviceAddress = true;
+    // TODO: is this the right way to do this?
+    vk::PhysicalDeviceVulkan12Features features;
+    features.setBufferDeviceAddress(true);
 
-    //selector.set_required_features_12(features);
+    selector.set_required_features_12(features);
 
     vkb::Result<vkb::PhysicalDevice> physicalDeviceResult = selector.select();
     if (!physicalDeviceResult)
@@ -289,11 +289,10 @@ std::pair<vk::raii::Queue, unsigned> VulkanInitilization::createQueue(const vk::
 
 std::vector<vk::raii::ImageView> VulkanInitilization::createSwapchainImageViews(const vk::raii::Device& device)
 {
+    std::vector<VkImageView> vkViews = _bootstrapSwapchain.get_image_views().value(); // get_image_views apparently creates the image views as well
     std::vector<vk::raii::ImageView> views;
 
-    std::vector<VkImageView> vkViews = _bootstrapSwapchain.get_image_views().value(); // get_image_views apparently creates the image views as well
-
-    for (int i = 0; i < views.size(); i++)
+    for (int i = 0; i < vkViews.size(); i++)
     {
         views.push_back(vk::raii::ImageView(device, vkViews[i]));
     }
@@ -309,8 +308,7 @@ std::vector<vk::raii::Framebuffer> VulkanInitilization::createFramebuffers(const
     {
         vk::FramebufferCreateInfo info;
         info.setRenderPass(renderPass);
-        info.setAttachmentCount(1);
-        info.setAttachments(imageViews[i]);
+        info.setAttachments(*(imageViews[i]));
         info.setWidth(_bootstrapSwapchain.extent.width);
         info.setHeight(_bootstrapSwapchain.extent.height);
         info.setLayers(1);

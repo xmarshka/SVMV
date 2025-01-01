@@ -13,11 +13,55 @@ namespace SVMV
 
     enum class AttributeType : int
     {
-        UNDEFINED, INDEX, POSITION, NORMAL, TANGENT, TEXCOORD_0, COLOR_0
+        UNDEFINED, POSITION, NORMAL, TANGENT, TEXCOORD_0, COLOR_0
     };
 
     struct Attribute
     {
+        Attribute() = default;
+
+        Attribute(const Attribute&) = delete;
+        Attribute& operator=(const Attribute&) = delete;
+
+        Attribute(Attribute&& other) noexcept
+        {
+            this->attributeType = other.attributeType;
+            this->elements = std::move(other.elements);
+            this->type = other.type;
+            this->size = other.size;
+            this->count = other.count;
+            this->componentCount = other.componentCount;
+
+            other.attributeType = AttributeType::UNDEFINED;
+            other.type = Type::UNDEFINED;
+            other.size = 0;
+            other.count = 0;
+            other.componentCount = 0;
+        }
+
+        Attribute& operator=(Attribute&& other) noexcept
+        {
+            if (this != &other)
+            {
+                this->attributeType = other.attributeType;
+                this->elements = std::move(other.elements);
+                this->type = other.type;
+                this->size = other.size;
+                this->count = other.count;
+                this->componentCount = other.componentCount;
+
+                other.attributeType = AttributeType::UNDEFINED;
+                other.type = Type::UNDEFINED;
+                other.size = 0;
+                other.count = 0;
+                other.componentCount = 0;
+            }
+
+            return *this;
+        }
+
+        ~Attribute() = default;
+
         AttributeType attributeType{ AttributeType::UNDEFINED };
         std::unique_ptr<std::byte[]> elements{nullptr};
 
