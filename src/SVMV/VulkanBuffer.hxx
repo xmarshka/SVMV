@@ -75,6 +75,7 @@ namespace SVMV
         ~VulkanStagingBuffer();
 
         void pushData(void* data, size_t size);
+        void resetDataPointer();
 
         void copyToBuffer(const VulkanBuffer& destination);
         void copyToBuffer(const VulkanBuffer& destination, size_t sizeToCopy, size_t offset = 0);
@@ -85,5 +86,24 @@ namespace SVMV
         VulkanUtilities::ImmediateSubmit* _immediateSubmit{ nullptr };
         size_t _capacity{ 0 };
         size_t _filledSize{ 0 };
+    };
+
+    class VulkanUniformBuffer : public VulkanBuffer
+    {
+    public:
+        VulkanUniformBuffer() = default;
+        VulkanUniformBuffer(vk::raii::Device* device, VmaAllocator vmaAllocator, size_t bufferSize);
+
+        VulkanUniformBuffer(const VulkanUniformBuffer&) = delete;
+        VulkanUniformBuffer& operator=(const VulkanUniformBuffer&) = delete;
+
+        VulkanUniformBuffer(VulkanUniformBuffer&& other) noexcept;
+        VulkanUniformBuffer& operator=(VulkanUniformBuffer&& other) noexcept;
+
+        ~VulkanUniformBuffer();
+
+        void setData(void* data, size_t size);
+    private:
+        std::byte* _mappedData{ nullptr };
     };
 }

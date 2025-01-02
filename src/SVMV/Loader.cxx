@@ -322,9 +322,6 @@ void Loader::details::processTexture(std::shared_ptr<Texture> texture, const tin
 
 void Loader::details::copyAccessorToDestination(std::byte* source, std::byte* destination, size_t count, size_t componentCount, size_t componentSize, size_t byteStride)
 {
-    float* testing = reinterpret_cast<float*>(source);
-    float* testing2 = reinterpret_cast<float*>(destination);
-
     for (int i = 0; i < count; i++)
     {
         memcpy(destination, source, componentCount * componentSize);

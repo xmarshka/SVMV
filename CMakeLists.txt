@@ -20,6 +20,7 @@ set(SVMV_INCLUDES
 	${SRC_DIR}/VulkanMaterial.hxx
 	${SRC_DIR}/VulkanShaderStructures.hxx
 	${SRC_DIR}/VulkanGLTFPBRMaterial.hxx
+	${SRC_DIR}/VulkanDescriptorWriter.hxx
 	${SRC_DIR}/VulkanUtilities.hxx
 	${SRC_DIR}/Loader.hxx
 	${SRC_DIR}/Scene.hxx
@@ -41,6 +42,7 @@ set(SVMV_SOURCES
 	${SRC_DIR}/VulkanBuffer.cxx
 	${SRC_DIR}/VulkanImage.cxx
 	${SRC_DIR}/VulkanGLTFPBRMaterial.cxx
+	${SRC_DIR}/VulkanDescriptorWriter.cxx
 	${SRC_DIR}/VulkanUtilities.cxx
 	${SRC_DIR}/Loader.cxx)
 

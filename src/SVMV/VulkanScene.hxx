@@ -24,9 +24,13 @@ namespace SVMV
 
     struct VulkanScene
     {
-        VulkanGPUBuffer indexGpuBuffer;
+        VulkanGPUBuffer indexGPUBuffer;
         VulkanStagingBuffer indexStagingBuffer;
         int indexCounter{ 0 };
+
+        VulkanGPUBuffer modelMatrixGPUBuffer;
+        VulkanStagingBuffer modelMatrixStagingBuffer;
+        int modelMatrixCounter{ 0 };
 
         std::vector<VertexAttribute> attributes; // holds the buffers containing attribute data for all drawables in the scene
 

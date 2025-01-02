@@ -1,12 +1,12 @@
 #pragma once
 
-#include <SVMV/Attribute.hxx>
-
 #include <vulkan/vulkan.hpp>
 #include <glm/glm.hpp>
 
 #include <cstdint>
 #include <memory>
+
+#include <SVMV/Attribute.hxx>
 
 namespace SVMV
 {
@@ -21,12 +21,12 @@ namespace SVMV
 
     struct VulkanDrawable
     {
-        uint32_t firstIndex;
-        uint32_t indexCount;
+        uint32_t firstIndex{ 0 };
+        uint32_t indexCount{ 0 };
 
-        AttributeAddresses addresses;
+        vk::DeviceAddress modelMatrixAddress{ 0 };
 
-        glm::mat4 modelMatrix{ 1.0f };
+        AttributeAddresses attributeAddresses;
 
         std::shared_ptr<vk::raii::DescriptorSet> descriptorSet;
 
@@ -35,19 +35,19 @@ namespace SVMV
             switch (type)
             {
             case AttributeType::POSITION:
-                addresses.positions = value;
+                attributeAddresses.positions = value;
                 break;
             case AttributeType::NORMAL:
-                addresses.normals = value;
+                attributeAddresses.normals = value;
                 break;
             case AttributeType::TANGENT:
-                addresses.tangents = value;
+                attributeAddresses.tangents = value;
                 break;
             case AttributeType::TEXCOORD_0:
-                addresses.texcoords_0 = value;
+                attributeAddresses.texcoords_0 = value;
                 break;
             case AttributeType::COLOR_0:
-                addresses.colors_0 = value;
+                attributeAddresses.colors_0 = value;
                 break;
             default:
                 return;

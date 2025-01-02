@@ -20,6 +20,7 @@
 #include <SVMV/VulkanScene.hxx>
 #include <SVMV/VulkanBuffer.hxx>
 #include <SVMV/VulkanShaderStructures.hxx>
+#include <SVMV/VulkanDescriptorWriter.hxx>
 
 #include <memory>
 #include <vector>
@@ -47,13 +48,13 @@ namespace SVMV
 
         void loadScene(std::shared_ptr<Scene> scene);
 
-        // TODO: setCamera();
+        void setCamera(glm::vec3 position, glm::vec3 lookDirection, glm::vec3 upDirection, float fieldOfView);
 
         [[nodiscard]] const vk::Device getDevice() const noexcept;
         [[nodiscard]] GLFWwindow* getWindow() const noexcept;
 
     private:
-        void recordDrawCommands(const vk::raii::CommandBuffer& commandBuffer, const vk::raii::Framebuffer& framebuffer);
+        void recordDrawCommands(int activeFrame, const vk::raii::Framebuffer& framebuffer);
 
         void preprocessScene(std::shared_ptr<Scene> scene); // TODO: generate material contexts and materials that appear in the scene, get attribute sizes and create the buffers in VulkanScene
         void generateDrawablesFromScene(std::shared_ptr<Node> node, glm::mat4 baseTransform); // TODO: generate drawables and load mesh data to staging buffers, recursive
@@ -61,6 +62,7 @@ namespace SVMV
 
         void recreateSwapchain();
         void createRenderPass();
+        void createGlobalDescriptorSets();
 
         static void resized(GLFWwindow* window, int width, int height);
         static void minimized(GLFWwindow* window, int minimized);
@@ -69,12 +71,15 @@ namespace SVMV
         VulkanUtilities::GLFWwindowWrapper _window;
         shaderc::Compiler _shaderCompiler;
 
-        bool _resized                               { false };
-        int _framesInFlight                         { 0 };
-        int _activeFrame                            { 0 };
+        bool _resized           { false };
+        int _framesInFlight     { 0 };
+        int _activeFrame        { 0 };
 
-        vk::Extent2D _swapchainExtent               { 0 };
-        vk::Format _swapchainFormat                 { vk::Format::eUndefined };
+        glm::mat4 _projectionMatrix     { 1.0f };
+        glm::mat4 _viewMatrix           { 1.0f };
+
+        vk::Extent2D _swapchainExtent   { 0 };
+        vk::Format _swapchainFormat     { vk::Format::eUndefined };
 
         vk::raii::Context _context;
 
@@ -100,7 +105,12 @@ namespace SVMV
         std::vector<vk::raii::Semaphore> _renderCompleteSemaphores;
         std::vector<vk::raii::Fence> _inFlightFences;
 
+        vk::raii::DescriptorSetLayout _globalDescriptorSetLayout    { nullptr };
+        std::vector<VulkanUniformBuffer> _globalDescriptorSetBuffers;
+        std::vector<vk::raii::DescriptorSet> _globalDescriptorSets;
+
         VulkanUtilities::DescriptorAllocator _descriptorAllocator;
+        VulkanDescriptorWriter _descriptorWriter;
         VulkanUtilities::VmaAllocatorWrapper _vmaAllocator;
         VulkanUtilities::ImmediateSubmit _immediateSubmit;
 

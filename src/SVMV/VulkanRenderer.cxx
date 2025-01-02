@@ -36,6 +36,7 @@ VulkanRenderer::VulkanRenderer(int width, int height, const std::string& name, u
     _inFlightFences = _initilization.createFences(_device, _framesInFlight);
 
     _descriptorAllocator = VulkanUtilities::DescriptorAllocator(&_device);
+    _descriptorWriter = VulkanDescriptorWriter(&_device);
     _vmaAllocator = VulkanUtilities::VmaAllocatorWrapper(_instance, _physicalDevice, _device);
     _immediateSubmit = VulkanUtilities::ImmediateSubmit(&_device, &_graphicsQueue, _graphicsQueueIndex);
 
@@ -45,10 +46,14 @@ VulkanRenderer::VulkanRenderer(int width, int height, const std::string& name, u
     commandBufferAllocateInfo.setCommandBufferCount(_framesInFlight);
 
     _drawCommandBuffers = vk::raii::CommandBuffers(_device, commandBufferAllocateInfo);
+    createGlobalDescriptorSets();
+
+    setCamera(glm::vec3(0.9f, 1.1f, 3.0f), glm::vec3(-0.2f, -0.2f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f), 50.0f);
 }
 
 void VulkanRenderer::draw()
 {
+    // Wait for this frame index's render to be finished
     vk::Result waitForFencesResult = _device.waitForFences(*_inFlightFences[_activeFrame], vk::True, UINT64_MAX);
 
     if (waitForFencesResult != vk::Result::eSuccess)
@@ -56,6 +61,7 @@ void VulkanRenderer::draw()
         throw std::runtime_error("vulkan: failure waiting for fences");
     }
 
+    // Acquire an image for color output
     vk::AcquireNextImageInfoKHR acquireNextImageInfo;
     acquireNextImageInfo.setSwapchain(_swapchain);
     acquireNextImageInfo.setTimeout(UINT64_MAX);
@@ -78,9 +84,20 @@ void VulkanRenderer::draw()
 
     _device.resetFences(*_inFlightFences[_activeFrame]);
 
-    _drawCommandBuffers[_activeFrame].reset();
-    recordDrawCommands(_drawCommandBuffers[_activeFrame], _framebuffers[acquireResult.second]);
+    // Set the current frame's camera matrix descriptor set
+    ShaderStructures::GlobalUniformBuffer globalUniformBuffer;
+    globalUniformBuffer.View = _viewMatrix;
+    globalUniformBuffer.ViewProjection = _projectionMatrix * _viewMatrix;
 
+    _globalDescriptorSetBuffers[_activeFrame].setData(&globalUniformBuffer, sizeof(ShaderStructures::GlobalUniformBuffer));
+
+    _descriptorWriter.writeBuffer(_globalDescriptorSets[_activeFrame], _globalDescriptorSetBuffers[_activeFrame], 0, 0, sizeof(ShaderStructures::GlobalUniformBuffer), vk::DescriptorType::eUniformBuffer);
+
+    // Record drawing command buffers
+    _drawCommandBuffers[_activeFrame].reset();
+    recordDrawCommands(_activeFrame, _framebuffers[acquireResult.second]);
+
+    // Submit command buffer to graphics queue for execution
     vk::SubmitInfo submitInfo;
     submitInfo.setWaitSemaphores(*(_imageReadySemaphores[_activeFrame]));
     vk::PipelineStageFlags waitDstStageFlags = vk::PipelineStageFlagBits::eColorAttachmentOutput;
@@ -90,6 +107,7 @@ void VulkanRenderer::draw()
 
     _graphicsQueue.submit(submitInfo, *_inFlightFences[_activeFrame]);
 
+    // Present the frame to the screen
     vk::PresentInfoKHR presentInfo;
     presentInfo.setWaitSemaphores(*(_renderCompleteSemaphores[_activeFrame]));
     presentInfo.setSwapchains(*(_swapchain));
@@ -109,6 +127,7 @@ void VulkanRenderer::draw()
         break;
     }
 
+    // Increment active frame index
     _activeFrame = (_activeFrame + 1) % _framesInFlight;
 }
 
@@ -117,6 +136,13 @@ void VulkanRenderer::loadScene(std::shared_ptr<Scene> scene)
     preprocessScene(scene);
     generateDrawablesFromScene(scene->root, scene->root->transform);
     copyStagingBuffersToGPUBuffers();
+}
+
+void VulkanRenderer::setCamera(glm::vec3 position, glm::vec3 lookDirection, glm::vec3 upDirection, float fieldOfView)
+{
+    _projectionMatrix = glm::perspective(glm::radians(fieldOfView), (float)_swapchainExtent.width / (float)_swapchainExtent.height, 0.1f, 100.0f);
+
+    _viewMatrix = glm::lookAt(position, position + lookDirection, upDirection);
 }
 
 const vk::Device VulkanRenderer::getDevice() const noexcept
@@ -129,19 +155,11 @@ GLFWwindow* VulkanRenderer::getWindow() const noexcept
     return _window.getWindow();
 }
 
-void VulkanRenderer::recordDrawCommands(const vk::raii::CommandBuffer& commandBuffer, const vk::raii::Framebuffer& framebuffer)
+void VulkanRenderer::recordDrawCommands(int activeFrame, const vk::raii::Framebuffer& framebuffer)
 {
-    glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)_swapchainExtent.width / (float)_swapchainExtent.height, 0.1f, 100.0f);
-
-    glm::vec3 cameraPos = glm::vec3(0.9f, 1.1f, 3.0f);
-    glm::vec3 cameraFront = glm::vec3(-0.2f, -0.2f, -1.0f);
-    glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
-    
-    glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-
     ShaderStructures::PushConstants constants;
 
-    commandBuffer.begin(vk::CommandBufferBeginInfo());
+    _drawCommandBuffers[activeFrame].begin(vk::CommandBufferBeginInfo());
 
     vk::RenderPassBeginInfo renderPassBeginInfo;
     renderPassBeginInfo.setRenderPass(_renderPass);
@@ -150,48 +168,52 @@ void VulkanRenderer::recordDrawCommands(const vk::raii::CommandBuffer& commandBu
     vk::ClearValue clearValue(vk::ClearColorValue(0.2f, 0.2f, 0.2f, 1.0f));
     renderPassBeginInfo.setClearValues(clearValue);
 
-    commandBuffer.beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
+    _drawCommandBuffers[activeFrame].beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
 
     vk::Viewport viewport(0.0f, 0.0f, _swapchainExtent.width, _swapchainExtent.height, 0.0f, 1.0f);
-    commandBuffer.setViewport(0, viewport);
+    _drawCommandBuffers[activeFrame].setViewport(0, viewport);
 
     vk::Rect2D scissor(vk::Offset2D(0, 0), _swapchainExtent);
-    commandBuffer.setScissor(0, scissor);
+    _drawCommandBuffers[activeFrame].setScissor(0, scissor);
 
     for (const auto& context : _scene.contexts)
     {
-        commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *context.second.pipeline);
-        commandBuffer.bindIndexBuffer(_scene.indexGpuBuffer.getBuffer(), vk::DeviceSize(0), vk::IndexType::eUint32);
+        _drawCommandBuffers[activeFrame].bindPipeline(vk::PipelineBindPoint::eGraphics, *context.second.pipeline);
+
+        _drawCommandBuffers[activeFrame].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *context.second.pipelineLayout, 0, *_globalDescriptorSets[activeFrame], nullptr);
+
+        _drawCommandBuffers[activeFrame].bindIndexBuffer(_scene.indexGPUBuffer.getBuffer(), vk::DeviceSize(0), vk::IndexType::eUint32);
 
         for (const auto& drawable : context.second.drawables)
         {
-            constants.mvpMatrix = projection * view * drawable.modelMatrix;
+            constants.positions = drawable.attributeAddresses.positions;
+            constants.normals = drawable.attributeAddresses.normals;
+            constants.tangents = drawable.attributeAddresses.tangents;
+            constants.texcoords_0 = drawable.attributeAddresses.texcoords_0;
+            constants.colors_0 = drawable.attributeAddresses.colors_0;
+            constants.modelMatrix = drawable.modelMatrixAddress;
 
-            constants.addresses.positions = drawable.addresses.positions;
-            constants.addresses.normals = drawable.addresses.normals;
-            constants.addresses.tangents = drawable.addresses.tangents;
-            constants.addresses.texcoords_0 = drawable.addresses.texcoords_0;
-            constants.addresses.colors_0 = drawable.addresses.colors_0;
-
-            commandBuffer.pushConstants<ShaderStructures::PushConstants>(*context.second.pipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, constants);
-            commandBuffer.drawIndexed(drawable.indexCount, 1, drawable.firstIndex, 0, 0);
+            _drawCommandBuffers[activeFrame].pushConstants<ShaderStructures::PushConstants>(*context.second.pipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, constants);
+            _drawCommandBuffers[activeFrame].drawIndexed(drawable.indexCount, 1, drawable.firstIndex, 0, 0);
         }
     }
 
-    commandBuffer.endRenderPass();
-    commandBuffer.end();
+    _drawCommandBuffers[activeFrame].endRenderPass();
+    _drawCommandBuffers[activeFrame].end();
 }
 
 void VulkanRenderer::preprocessScene(std::shared_ptr<Scene> scene)
 {
-    std::unordered_map<AttributeType, size_t> attributeSizeMap;
-    size_t indexSize = 0;
+    std::unordered_map<AttributeType, int> attributeSizeMap;
+    int indexSize = 0;
+    int modelMatrixCount = 0;
 
     for (const auto& mesh : scene->meshes)
     {
         for (const auto& primitive : mesh->primitives)
         {
             indexSize += primitive->indices.size() * sizeof(decltype(primitive->indices)::value_type);
+            modelMatrixCount++;
 
             for (const auto& attribute : primitive->attributes)
             {
@@ -212,8 +234,11 @@ void VulkanRenderer::preprocessScene(std::shared_ptr<Scene> scene)
         throw std::runtime_error("VulkanRenderer: loaded scene must contain indices");
     }
 
-    _scene.indexGpuBuffer = VulkanGPUBuffer(&_device, _vmaAllocator.getAllocator(), indexSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer);
-    _scene.indexStagingBuffer = VulkanStagingBuffer(&_device, _scene.indexGpuBuffer, &_immediateSubmit);
+    _scene.indexGPUBuffer = VulkanGPUBuffer(&_device, _vmaAllocator.getAllocator(), indexSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer);
+    _scene.indexStagingBuffer = VulkanStagingBuffer(&_device, _scene.indexGPUBuffer, &_immediateSubmit);
+
+    _scene.modelMatrixGPUBuffer = VulkanGPUBuffer(&_device, _vmaAllocator.getAllocator(), modelMatrixCount * sizeof(glm::mat4), vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress);
+    _scene.modelMatrixStagingBuffer = VulkanStagingBuffer(&_device, _scene.modelMatrixGPUBuffer, &_immediateSubmit);
 
     for (const auto& attributeSize : attributeSizeMap)
     {
@@ -241,18 +266,21 @@ void VulkanRenderer::generateDrawablesFromScene(std::shared_ptr<Node> node, glm:
             }
             else
             {
-                drawable.modelMatrix = baseTransform;
                 drawable.firstIndex = _scene.indexCounter;
                 drawable.indexCount = primitive->indices.size();
                 _scene.indexCounter += primitive->indices.size();
 
                 _scene.indexStagingBuffer.pushData(primitive->indices.data(), primitive->indices.size() * sizeof(decltype(primitive->indices)::value_type));
+                _scene.modelMatrixStagingBuffer.pushData(&baseTransform, sizeof(glm::mat4));
+
+                drawable.modelMatrixAddress = _scene.modelMatrixGPUBuffer.getAddress(_device) + _scene.modelMatrixCounter * sizeof(glm::mat4);
+                _scene.modelMatrixCounter++;
 
                 for (const auto& attribute : primitive->attributes)
                 {
                     auto vertexAttributeIterator = std::find_if(_scene.attributes.begin(), _scene.attributes.end(), [&](const VertexAttribute& vertexAttribute) { return vertexAttribute.type == attribute.attributeType; });
                     vertexAttributeIterator->stagingBuffer.pushData(attribute.elements.get(), attribute.size);
-                    drawable.setAddress(attribute.attributeType, vertexAttributeIterator->gpuBuffer.getAddress(_device));
+                    drawable.setAddress(attribute.attributeType, vertexAttributeIterator->gpuBufferAddressCounter);
                     vertexAttributeIterator->gpuBufferAddressCounter += attribute.size;
                 }
 
@@ -264,7 +292,7 @@ void VulkanRenderer::generateDrawablesFromScene(std::shared_ptr<Node> node, glm:
                     _scene.contexts[primitive->material->materialTypeName] = VulkanMaterialContext();
                     if (primitive->material->materialTypeName == "glTFPBR")
                     {
-                        _scene.glTFPBRMaterial = GLTFPBRMaterial(&_device, _vmaAllocator.getAllocator(), _renderPass, &_descriptorAllocator, _shaderCompiler);
+                        _scene.glTFPBRMaterial = GLTFPBRMaterial(&_device, _vmaAllocator.getAllocator(), _renderPass, _globalDescriptorSetLayout, &_descriptorAllocator, &_descriptorWriter, _shaderCompiler);
                         _scene.contexts[primitive->material->materialTypeName].pipeline = _scene.glTFPBRMaterial.getPipeline();
                         _scene.contexts[primitive->material->materialTypeName].pipelineLayout = _scene.glTFPBRMaterial.getPipelineLayout();
 
@@ -289,7 +317,8 @@ void VulkanRenderer::generateDrawablesFromScene(std::shared_ptr<Node> node, glm:
 
 void VulkanRenderer::copyStagingBuffersToGPUBuffers()
 {
-    _scene.indexStagingBuffer.copyToBuffer(_scene.indexGpuBuffer);
+    _scene.indexStagingBuffer.copyToBuffer(_scene.indexGPUBuffer);
+    _scene.modelMatrixStagingBuffer.copyToBuffer(_scene.modelMatrixGPUBuffer);
 
     for (auto& attribute : _scene.attributes)
     {
@@ -358,6 +387,26 @@ void VulkanRenderer::createRenderPass()
     renderPassCreateInfo.setSubpasses(subpassDescription);
 
     _renderPass = vk::raii::RenderPass(_device, renderPassCreateInfo);
+}
+
+void VulkanRenderer::createGlobalDescriptorSets()
+{
+    vk::DescriptorSetLayoutBinding descriptorSetLayoutBinging;
+    descriptorSetLayoutBinging.setBinding(0);
+    descriptorSetLayoutBinging.setDescriptorCount(1);
+    descriptorSetLayoutBinging.setDescriptorType(vk::DescriptorType::eUniformBuffer);
+    descriptorSetLayoutBinging.setStageFlags(vk::ShaderStageFlagBits::eVertex);
+
+    vk::DescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo;
+    descriptorSetLayoutCreateInfo.setBindings(descriptorSetLayoutBinging);
+
+    _globalDescriptorSetLayout = vk::raii::DescriptorSetLayout(_device, descriptorSetLayoutCreateInfo);
+
+    for (int i = 0; i < _framesInFlight; i++)
+    {
+        _globalDescriptorSetBuffers.push_back(VulkanUniformBuffer(&_device, _vmaAllocator.getAllocator(), sizeof(ShaderStructures::GlobalUniformBuffer)));
+        _globalDescriptorSets.push_back(std::move(_descriptorAllocator.allocateSet(_globalDescriptorSetLayout)));
+    }
 }
 
 void VulkanRenderer::resized(GLFWwindow* window, int width, int height)

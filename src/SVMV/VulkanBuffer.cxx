@@ -47,9 +47,9 @@ VulkanBuffer& VulkanBuffer::operator=(VulkanBuffer&& other) noexcept
 {
     if (this != &other)
     {
-        if (*this->_buffer != nullptr)
+        if (this->_allocator != nullptr && this->_allocation != nullptr)
         {
-            vmaDestroyBuffer(this->_allocator, *this->_buffer, this->_allocation); // NOTE: is this ok with the raii buffer? its destructor is called after...
+            vmaDestroyBuffer(this->_allocator, *this->_buffer, this->_allocation); // NOTE: is this ok with the raii buffer? its destructor is called after, idk
         }
 
         this->_buffer = std::move(other._buffer);
@@ -67,9 +67,9 @@ VulkanBuffer& VulkanBuffer::operator=(VulkanBuffer&& other) noexcept
 
 VulkanBuffer::~VulkanBuffer()
 {
-    if (*_buffer != nullptr)
+    if (this->_allocator != nullptr && this->_allocation != nullptr)
     {
-        vmaDestroyBuffer(_allocator, *_buffer, _allocation); // NOTE: is this ok with the raii buffer? its destructor is called after, idk
+        vmaDestroyBuffer(this->_allocator, *this->_buffer, this->_allocation); // NOTE: is this ok with the raii buffer? its destructor is called after, idk
     }
 }
 
@@ -162,7 +162,7 @@ VulkanStagingBuffer& VulkanStagingBuffer::operator=(VulkanStagingBuffer&& other)
     {
         if (this->_allocator != nullptr && this->_allocation != nullptr)
         {
-            vmaUnmapMemory(other._allocator, other._allocation);
+            vmaUnmapMemory(this->_allocator, this->_allocation);
         }
 
         VulkanBuffer::operator=(std::move(other));
@@ -195,6 +195,11 @@ void VulkanStagingBuffer::pushData(void* data, size_t size)
     _filledSize += size;
 }
 
+void VulkanStagingBuffer::resetDataPointer()
+{
+    _filledSize = 0;
+}
+
 void VulkanStagingBuffer::copyToBuffer(const VulkanBuffer& destination)
 {
     copyToBuffer(destination, _size);
@@ -211,4 +216,53 @@ void VulkanStagingBuffer::copyToBuffer(const VulkanBuffer& destination, size_t s
         {
             commandBuffer.copyBuffer(_buffer, *destination.getBuffer(), copy);
         });
+}
+
+VulkanUniformBuffer::VulkanUniformBuffer(vk::raii::Device* device, VmaAllocator vmaAllocator, size_t bufferSize)
+    : VulkanBuffer(device, vmaAllocator, bufferSize, vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eUniformBuffer, true)
+{
+    vmaMapMemory(_allocator, _allocation, reinterpret_cast<void**>(&_mappedData));
+}
+
+VulkanUniformBuffer::VulkanUniformBuffer(VulkanUniformBuffer&& other) noexcept
+    : VulkanBuffer(std::move(other))
+{
+    this->_mappedData = other._mappedData;
+
+    other._mappedData = nullptr;
+}
+
+VulkanUniformBuffer& VulkanUniformBuffer::operator=(VulkanUniformBuffer&& other) noexcept
+{
+    if (this != &other)
+    {
+        if (this->_allocator != nullptr && this->_allocation != nullptr)
+        {
+            vmaUnmapMemory(this->_allocator, this->_allocation);
+        }
+
+        VulkanBuffer::operator=(std::move(other));
+
+        this->_mappedData = other._mappedData;
+
+        other._mappedData = nullptr;
+    }
+
+    return *this;
+}
+
+VulkanUniformBuffer::~VulkanUniformBuffer()
+{
+    if (_allocator != nullptr && _allocation != nullptr)
+    {
+        vmaUnmapMemory(_allocator, _allocation);
+    }
+}
+
+void VulkanUniformBuffer::setData(void* data, size_t size)
+{
+    if (size == _size)
+    {
+        memcpy(_mappedData, data, size);
+    }
 }

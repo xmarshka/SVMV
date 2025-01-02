@@ -8,6 +8,7 @@
 #include <SVMV/VulkanShader.hxx>
 #include <SVMV/VulkanShaderStructures.hxx>
 #include <SVMV/VulkanUtilities.hxx>
+#include <SVMV/VulkanDescriptorWriter.hxx>
 
 #include <vulkan/vulkan.hpp>
 #include <VkBootstrap.h>
@@ -24,8 +25,10 @@ namespace SVMV
     public:
         struct MaterialUniformParameters
         {
-            glm::vec4 baseColorFactor;
-            glm::vec4 roughnessMetallicFactors;
+            glm::vec4 baseColorFactor           { 1.0f };
+            glm::vec4 roughnessMetallicFactors  { 1.0f };
+
+            // padding to align to 256 bytes
             glm::vec4 padding[14];
         };
 
@@ -38,7 +41,10 @@ namespace SVMV
 
     public:
         GLTFPBRMaterial() = default;
-        GLTFPBRMaterial(vk::raii::Device* device, VmaAllocator allocator, const vk::raii::RenderPass& renderPass, VulkanUtilities::DescriptorAllocator* descriptorAllocator, const shaderc::Compiler& compiler);
+        GLTFPBRMaterial(
+            vk::raii::Device* device, VmaAllocator memoryAllocator, const vk::raii::RenderPass& renderPass, const vk::raii::DescriptorSetLayout& globalDescriptorSetLayout,
+            VulkanUtilities::DescriptorAllocator* descriptorAllocator, VulkanDescriptorWriter* descriptorWriter, const shaderc::Compiler& compiler
+        );
 
         GLTFPBRMaterial(const GLTFPBRMaterial&) = delete;
         GLTFPBRMaterial& operator=(const GLTFPBRMaterial&) = delete;
@@ -58,6 +64,7 @@ namespace SVMV
         VmaAllocator _memoryAllocator{ nullptr };
         VulkanUtilities::ImmediateSubmit* _immediateSubmit{ nullptr };
         VulkanUtilities::DescriptorAllocator* _descriptorAllocator{ nullptr };
+        VulkanDescriptorWriter* _descriptorWriter{ nullptr };
 
         vk::raii::Pipeline _pipeline{ nullptr };
         vk::raii::PipelineLayout _pipelineLayout{ nullptr };
