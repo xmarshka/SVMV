@@ -23,6 +23,10 @@ namespace SVMV
 
         void writeBuffer(const vk::raii::DescriptorSet& descriptorSet, const VulkanBuffer& buffer, int binding, int offset, int size, vk::DescriptorType bufferType);
         void writeImage();
+        void writeImageAndSampler(
+            const vk::raii::DescriptorSet& descriptorSet, const VulkanImage& image,
+            vk::ImageLayout imageLayout, const vk::raii::Sampler& sampler, int binding
+        );
 
     private:
         vk::raii::Device* _device;

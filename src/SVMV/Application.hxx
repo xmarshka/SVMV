@@ -10,8 +10,6 @@ namespace SVMV
     private:
         VulkanRenderer _renderer{ 800, 600, "SVMV", 2 }; // TODO: placeholder, implement move constructor later (or initialize function)
 
-        bool _frozen{ false };
-
     public:
         Application() = delete;
         Application(int width, int height, const std::string& name);
@@ -25,11 +23,6 @@ namespace SVMV
         ~Application() = default;
 
     private:
-        void initialize(int width, int height, const std::string& name);
-        void cleanup();
         void loop();
-
-        static void framebufferResized(GLFWwindow* window, int width, int height);
-        static void minimized(GLFWwindow* window, int minimized);
     };
 }

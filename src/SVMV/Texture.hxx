@@ -1,14 +1,15 @@
 #pragma once
 
-#include <span>
+#include <memory>
 
 namespace SVMV
 {
     struct Texture
     {
-        unsigned width;
-        unsigned height;
+        unsigned width      { 0 };
+        unsigned height     { 0 };
 
-        std::span<uint8_t> data; // in RGBA format
+        std::unique_ptr<std::byte[]> data; // in RGBA format
+        size_t size     { 0 };
     };
 }

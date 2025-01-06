@@ -10,32 +10,41 @@ namespace SVMV
     class VulkanImage
     {
     public:
-        vk::raii::Image image;
-        vk::raii::ImageView imageView;
+        VulkanImage() = default;
+        VulkanImage(
+            vk::raii::Device* device, VulkanUtilities::ImmediateSubmit* immediateSubmit, VmaAllocator vmaAllocator,
+            vk::Extent2D extent, vk::Format format, vk::ImageUsageFlags imageUsageFlags, void* data, size_t dataSize
+        );
 
-        vk::Format format;
-        vk::Extent3D extent;
-
-        VmaAllocation allocation;
-        VmaAllocationInfo info;
-
-    private:
-        vk::raii::Device* _device;
-        VmaAllocator _allocator;
-        VulkanUtilities::ImmediateSubmit* _immediateSubmit;
-
-    public:
         VulkanImage(const VulkanImage&) = delete;
         VulkanImage& operator=(const VulkanImage&) = delete;
 
-        VulkanImage();
-        VulkanImage(vk::raii::Device* device, VmaAllocator vmaAllocator, unsigned width, unsigned height, vk::Format format, vk::Flags<vk::ImageUsageFlagBits> imageUsage, VulkanUtilities::ImmediateSubmit* immediateSubmit);
+        VulkanImage(VulkanImage&& other) noexcept;
+        VulkanImage& operator=(VulkanImage&& other) noexcept;
+
         ~VulkanImage();
 
-        void create(vk::raii::Device* device, VmaAllocator vmaAllocator, unsigned width, unsigned height, vk::Format format, vk::Flags<vk::ImageUsageFlagBits> imageUsage, VulkanUtilities::ImmediateSubmit* immediateSubmit);
-        void copyDataToImage(void* data, size_t dataSize);
-        void free();
+        [[nodiscard]] const vk::raii::Image& getImage() const noexcept;
+        [[nodiscard]] const vk::raii::ImageView& getImageView() const noexcept;
+        [[nodiscard]] vk::Format getFormat() const noexcept;
+        [[nodiscard]] vk::Extent3D getExtent() const noexcept;
 
         operator bool() const;
+
+    private:
+        void fillImage(void* data, size_t size);
+
+    private:
+        vk::raii::Image _image          { nullptr };
+        vk::raii::ImageView _imageView  { nullptr };
+
+        VmaAllocator _allocator         { nullptr };
+        VmaAllocation _allocation       { nullptr };
+
+        vk::raii::Device* _device                           { nullptr };
+        VulkanUtilities::ImmediateSubmit* _immediateSubmit  { nullptr };
+
+        vk::Format _format      { vk::Format::eUndefined };
+        vk::Extent3D _extent    { 0 };
     };
 }

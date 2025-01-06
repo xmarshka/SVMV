@@ -1,6 +1,5 @@
 #pragma once
 
-#include <span>
 #include <memory>
 #include <cstddef>
 

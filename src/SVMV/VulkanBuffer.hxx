@@ -32,12 +32,12 @@ namespace SVMV
         [[nodiscard]] const vk::DeviceAddress getAddress(const vk::Device& device) const;
 
     protected:
-        vk::raii::Buffer _buffer{ nullptr };
+        vk::raii::Buffer _buffer    { nullptr };
 
-        VmaAllocator _allocator{ nullptr };
-        VmaAllocation _allocation{ nullptr };
+        VmaAllocator _allocator     { nullptr };
+        VmaAllocation _allocation   { nullptr };
 
-        size_t _size{ 0 };
+        size_t _size    { 0 };
     };
 
     // GPU BUFFER
@@ -81,11 +81,12 @@ namespace SVMV
         void copyToBuffer(const VulkanBuffer& destination, size_t sizeToCopy, size_t offset = 0);
 
     private:
-        std::byte* _mappedData{ nullptr };
+        std::byte* _mappedData      { nullptr };
 
-        VulkanUtilities::ImmediateSubmit* _immediateSubmit{ nullptr };
-        size_t _capacity{ 0 };
-        size_t _filledSize{ 0 };
+        VulkanUtilities::ImmediateSubmit* _immediateSubmit      { nullptr };
+
+        size_t _capacity        { 0 };
+        size_t _filledSize      { 0 };
     };
 
     class VulkanUniformBuffer : public VulkanBuffer
@@ -104,6 +105,6 @@ namespace SVMV
 
         void setData(void* data, size_t size);
     private:
-        std::byte* _mappedData{ nullptr };
+        std::byte* _mappedData      { nullptr };
     };
 }

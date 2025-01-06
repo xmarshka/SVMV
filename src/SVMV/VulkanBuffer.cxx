@@ -34,12 +34,12 @@ VulkanBuffer::VulkanBuffer(vk::raii::Device* device, VmaAllocator vmaAllocator, 
 VulkanBuffer::VulkanBuffer(VulkanBuffer&& other) noexcept
 {
     this->_buffer = std::move(other._buffer);
-    this->_allocation = other._allocation;
     this->_allocator = other._allocator;
+    this->_allocation = other._allocation;
     this->_size = other._size;
 
-    other._allocation = nullptr;
     other._allocator = nullptr;
+    other._allocation = nullptr;
     other._size = 0;
 }
 
@@ -47,18 +47,20 @@ VulkanBuffer& VulkanBuffer::operator=(VulkanBuffer&& other) noexcept
 {
     if (this != &other)
     {
+        this->_buffer.clear();
+
         if (this->_allocator != nullptr && this->_allocation != nullptr)
         {
-            vmaDestroyBuffer(this->_allocator, *this->_buffer, this->_allocation); // NOTE: is this ok with the raii buffer? its destructor is called after, idk
+            vmaFreeMemory(_allocator, _allocation);
         }
 
         this->_buffer = std::move(other._buffer);
-        this->_allocation = other._allocation;
         this->_allocator = other._allocator;
+        this->_allocation = other._allocation;
         this->_size = other._size;
 
-        other._allocation = nullptr;
         other._allocator = nullptr;
+        other._allocation = nullptr;
         other._size = 0;
     }
 
@@ -67,9 +69,11 @@ VulkanBuffer& VulkanBuffer::operator=(VulkanBuffer&& other) noexcept
 
 VulkanBuffer::~VulkanBuffer()
 {
-    if (this->_allocator != nullptr && this->_allocation != nullptr)
+    this->_buffer.clear();
+
+    if (_allocator != nullptr && _allocation != nullptr)
     {
-        vmaDestroyBuffer(this->_allocator, *this->_buffer, this->_allocation); // NOTE: is this ok with the raii buffer? its destructor is called after, idk
+        vmaFreeMemory(_allocator, _allocation);
     }
 }
 
@@ -125,8 +129,7 @@ VulkanGPUBuffer& VulkanGPUBuffer::operator=(VulkanGPUBuffer&& other) noexcept
 }
 
 VulkanStagingBuffer::VulkanStagingBuffer(vk::raii::Device* device, VulkanUtilities::ImmediateSubmit* immediateSubmit, VmaAllocator vmaAllocator, size_t bufferSize)
-    : VulkanBuffer(device, vmaAllocator, bufferSize, vk::BufferUsageFlagBits::eTransferSrc, true)
-    , _immediateSubmit(immediateSubmit)
+    : VulkanBuffer(device, vmaAllocator, bufferSize, vk::BufferUsageFlagBits::eTransferSrc, true), _immediateSubmit(immediateSubmit)
 {
     _capacity = bufferSize;
 
@@ -134,8 +137,7 @@ VulkanStagingBuffer::VulkanStagingBuffer(vk::raii::Device* device, VulkanUtiliti
 }
 
 VulkanStagingBuffer::VulkanStagingBuffer(vk::raii::Device* device, const VulkanBuffer& destinationBuffer, VulkanUtilities::ImmediateSubmit* immediateSubmit)
-    : VulkanBuffer(device, destinationBuffer.getAllocator(), destinationBuffer.getSize(), vk::BufferUsageFlagBits::eTransferSrc, true)
-    , _immediateSubmit(immediateSubmit)
+    : VulkanBuffer(device, destinationBuffer.getAllocator(), destinationBuffer.getSize(), vk::BufferUsageFlagBits::eTransferSrc, true), _immediateSubmit(immediateSubmit)
 {
     _capacity = destinationBuffer.getSize();
 

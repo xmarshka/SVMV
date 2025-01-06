@@ -12,23 +12,22 @@ namespace SVMV
 {
     struct AttributeAddresses
     {
-        vk::DeviceAddress positions{ 0 };
-        vk::DeviceAddress normals{ 0 };
-        vk::DeviceAddress tangents{ 0 };
-        vk::DeviceAddress texcoords_0{ 0 };
-        vk::DeviceAddress colors_0{ 0 };
+        vk::DeviceAddress positions         { 0 };
+        vk::DeviceAddress normals           { 0 };
+        vk::DeviceAddress tangents          { 0 };
+        vk::DeviceAddress texcoords_0       { 0 };
+        vk::DeviceAddress colors_0          { 0 };
     };
 
     struct VulkanDrawable
     {
-        uint32_t firstIndex{ 0 };
-        uint32_t indexCount{ 0 };
+        uint32_t firstIndex     { 0 };
+        uint32_t indexCount     { 0 };
 
-        vk::DeviceAddress modelMatrixAddress{ 0 };
-
+        vk::DeviceAddress modelMatrixAddress        { 0 };
         AttributeAddresses attributeAddresses;
 
-        std::shared_ptr<vk::raii::DescriptorSet> descriptorSet;
+        vk::raii::DescriptorSet* descriptorSet      { nullptr };
 
         void setAddress(AttributeType type, vk::DeviceAddress value)
         {

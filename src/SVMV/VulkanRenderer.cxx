@@ -93,7 +93,7 @@ void VulkanRenderer::draw()
 
     _descriptorWriter.writeBuffer(_globalDescriptorSets[_activeFrame], _globalDescriptorSetBuffers[_activeFrame], 0, 0, sizeof(ShaderStructures::GlobalUniformBuffer), vk::DescriptorType::eUniformBuffer);
 
-    // Record drawing command buffers
+    // Record draw command buffers
     _drawCommandBuffers[_activeFrame].reset();
     recordDrawCommands(_activeFrame, _framebuffers[acquireResult.second]);
 
@@ -186,6 +186,8 @@ void VulkanRenderer::recordDrawCommands(int activeFrame, const vk::raii::Framebu
 
         for (const auto& drawable : context.second.drawables)
         {
+            _drawCommandBuffers[activeFrame].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *context.second.pipelineLayout, 1, **drawable.descriptorSet, nullptr);
+
             constants.positions = drawable.attributeAddresses.positions;
             constants.normals = drawable.attributeAddresses.normals;
             constants.tangents = drawable.attributeAddresses.tangents;
@@ -292,7 +294,10 @@ void VulkanRenderer::generateDrawablesFromScene(std::shared_ptr<Node> node, glm:
                     _scene.contexts[primitive->material->materialTypeName] = VulkanMaterialContext();
                     if (primitive->material->materialTypeName == "glTFPBR")
                     {
-                        _scene.glTFPBRMaterial = GLTFPBRMaterial(&_device, _vmaAllocator.getAllocator(), _renderPass, _globalDescriptorSetLayout, &_descriptorAllocator, &_descriptorWriter, _shaderCompiler);
+                        _scene.glTFPBRMaterial = GLTFPBRMaterial(
+                            &_device, _vmaAllocator.getAllocator(), &_immediateSubmit, _renderPass,
+                            _globalDescriptorSetLayout, &_descriptorAllocator, &_descriptorWriter, _shaderCompiler
+                        );
                         _scene.contexts[primitive->material->materialTypeName].pipeline = _scene.glTFPBRMaterial.getPipeline();
                         _scene.contexts[primitive->material->materialTypeName].pipelineLayout = _scene.glTFPBRMaterial.getPipelineLayout();
 
@@ -318,11 +323,15 @@ void VulkanRenderer::generateDrawablesFromScene(std::shared_ptr<Node> node, glm:
 void VulkanRenderer::copyStagingBuffersToGPUBuffers()
 {
     _scene.indexStagingBuffer.copyToBuffer(_scene.indexGPUBuffer);
+    _graphicsQueue.waitIdle(); // TODO: proper synchronisation
+
     _scene.modelMatrixStagingBuffer.copyToBuffer(_scene.modelMatrixGPUBuffer);
+    _graphicsQueue.waitIdle(); // TODO: proper synchronisation
 
     for (auto& attribute : _scene.attributes)
     {
         attribute.stagingBuffer.copyToBuffer(attribute.gpuBuffer);
+        _graphicsQueue.waitIdle(); // TODO: proper synchronisation
     }
 }
 

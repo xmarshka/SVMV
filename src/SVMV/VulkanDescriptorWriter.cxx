@@ -41,3 +41,23 @@ void VulkanDescriptorWriter::writeBuffer(const vk::raii::DescriptorSet& descript
 
     _device->updateDescriptorSets(writeDescriptorSet, nullptr);
 }
+
+void VulkanDescriptorWriter::writeImageAndSampler(
+    const vk::raii::DescriptorSet& descriptorSet, const VulkanImage& image,
+    vk::ImageLayout imageLayout, const vk::raii::Sampler& sampler, int binding
+)
+{
+    vk::DescriptorImageInfo descriptorImageInfo;
+    descriptorImageInfo.setImageView(image.getImageView());
+    descriptorImageInfo.setImageLayout(imageLayout);
+    descriptorImageInfo.setSampler(sampler);
+
+    vk::WriteDescriptorSet writeDescriptorSet;
+    writeDescriptorSet.setDstBinding(binding);
+    writeDescriptorSet.setDstSet(descriptorSet);
+    writeDescriptorSet.setDescriptorCount(1);
+    writeDescriptorSet.setDescriptorType(vk::DescriptorType::eCombinedImageSampler);
+    writeDescriptorSet.setImageInfo(descriptorImageInfo);
+
+    _device->updateDescriptorSets(writeDescriptorSet, nullptr);
+}

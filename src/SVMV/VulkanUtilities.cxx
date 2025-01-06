@@ -53,6 +53,13 @@ VulkanUtilities::ImmediateSubmit& VulkanUtilities::ImmediateSubmit::operator=(Im
 
 void VulkanUtilities::ImmediateSubmit::submit(std::function<void(const vk::raii::CommandBuffer& commandBuffer)>&& lambda)
 {
+    vk::Result waitForFencesResult = _device->waitForFences(*(_fence), true, INT16_MAX);
+
+    if (waitForFencesResult != vk::Result::eSuccess)
+    {
+        throw std::runtime_error("vulkan: failure waiting for fences");
+    }
+
     _device->resetFences(*_fence);
     _commandBuffer.reset();
 
@@ -68,7 +75,6 @@ void VulkanUtilities::ImmediateSubmit::submit(std::function<void(const vk::raii:
     submitInfo.setCommandBuffers(*(_commandBuffer));
 
     _queue->submit(submitInfo, _fence);
-    _device->waitForFences(*(_fence), true, INT16_MAX);
 }
 
 VulkanUtilities::DescriptorAllocator::DescriptorAllocator(vk::raii::Device* device)

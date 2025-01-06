@@ -131,18 +131,14 @@ void Loader::details::processPrimitive(std::shared_ptr<Node> node, const tinyglt
     std::shared_ptr<Primitive> primitive = std::make_shared<Primitive>();
     node->mesh->primitives.emplace_back(primitive);
 
-    /*if (gltfPrimitive.material != -1)
+    if (gltfPrimitive.material != -1)
     {
         processMaterial(primitive, gltfModel->materials[gltfPrimitive.material]);
     }
     else
     {
         primitive->material = createDefaultMaterial();
-    }*/
-
-    // TODO: TEMP
-    primitive->material = std::make_shared<Material>();
-    primitive->material->materialTypeName = "glTFPBR";
+    }
 
     if (gltfPrimitive.indices != -1)
     {
@@ -258,47 +254,42 @@ void Loader::details::processPrimitive(std::shared_ptr<Node> node, const tinyglt
 
 void Loader::details::processMaterial(std::shared_ptr<Primitive> primitive, const tinygltf::Material& gltfMaterial)
 {
-    /*std::shared_ptr<Material> material = std::make_shared<Material>();
+    std::shared_ptr<Material> material = std::make_shared<Material>();
+    material->materialTypeName = "glTFPBR";
 
-    for (int i = 0; i < material->baseColorFactor.length(); i++)
+    // Base color factor
+    std::shared_ptr<FloatVector4Property> baseColorFactorProperty = std::make_shared<FloatVector4Property>();
+    baseColorFactorProperty->name = "baseColorFactor";
+    for (int i = 0; i < gltfMaterial.pbrMetallicRoughness.baseColorFactor.size(); i++)
     {
-        material->baseColorFactor[i] = gltfMaterial.pbrMetallicRoughness.baseColorFactor[i];
+        baseColorFactorProperty->data[i] = gltfMaterial.pbrMetallicRoughness.baseColorFactor[i];
     }
+    material->properties[baseColorFactorProperty->name] = baseColorFactorProperty;
 
-    material->metallicFactor = gltfMaterial.pbrMetallicRoughness.metallicFactor;
-    material->roughnessFactor = gltfMaterial.pbrMetallicRoughness.roughnessFactor;
+    // Base color texture
+    std::shared_ptr<TextureProperty> baseColorTextureProperty = std::make_shared<TextureProperty>();
+    baseColorTextureProperty->name = "baseColorTexture";
+    
+    std::shared_ptr<Texture> baseColorTexture = std::make_shared<Texture>();
+    processTexture(baseColorTexture, gltfMaterial.pbrMetallicRoughness.baseColorTexture);
+    baseColorTextureProperty->data = baseColorTexture;
+    material->properties[baseColorTextureProperty->name] = baseColorTextureProperty;
 
-    if (gltfMaterial.pbrMetallicRoughness.baseColorTexture.index != -1)
-    {
-        processTexture(material->diffuseTexture, gltfMaterial.pbrMetallicRoughness.baseColorTexture);
-    }
-
-    primitive->material = material;*/
+    primitive->material = material;
 }
 
 std::shared_ptr<Material> Loader::details::createDefaultMaterial()
 {
+    // TODO: replace with an UNLIT material type
     std::shared_ptr<Material> material = std::make_shared<Material>();
-
-    /*material->baseColorFactor = glm::fvec4(1.0f);
-    material->metallicFactor = 0.0f;
-    material->roughnessFactor = 1.0f;
-
-    material->diffuseTexture = nullptr;
-    material->metallicRoughnessTexture = nullptr;
-
-    material->normalTexture = nullptr;
-    material->occlusionTexture = nullptr;
-    material->emissiveTexture = nullptr;*/
+    material->materialTypeName = "glTFPBR";
 
     return material;
 }
 
 void Loader::details::processTexture(std::shared_ptr<Texture> texture, const tinygltf::TextureInfo& gltfTextureInfo)
 {
-    texture = std::make_shared<Texture>();
-
-    // TODO: deal with undefined images and or samplers
+    // TODO: deal with undefined images and samplers
     tinygltf::Texture gltfTexture = gltfModel->textures[gltfTextureInfo.index];
     tinygltf::Image gltfImage = gltfModel->images[gltfTexture.source];
     tinygltf::Sampler gltfSampler = gltfModel->samplers[gltfTexture.sampler];
@@ -306,18 +297,10 @@ void Loader::details::processTexture(std::shared_ptr<Texture> texture, const tin
     texture->width = gltfImage.width;
     texture->height = gltfImage.height;
 
-    // TODO: this ought to depend on the image format
-    uint8_t* data = reinterpret_cast<uint8_t*>(malloc(gltfImage.width * gltfImage.height * 4));
-    texture->data = std::span<uint8_t>(data, gltfImage.width * gltfImage.height * 4);
+    texture->data = std::make_unique<std::byte[]>(gltfImage.width * gltfImage.height * 4); // tinyglTF expands images to RGBA by default
+    texture->size = gltfImage.width * gltfImage.height * 4;
 
-    if (gltfImage.component = 3)
-    {
-
-    }
-    else // assumed RGBA
-    {
-        memcpy(texture->data.data(), gltfImage.image.data(), gltfImage.width * gltfImage.height * 4);
-    }
+    memcpy(texture->data.get(), gltfImage.image.data(), gltfImage.width * gltfImage.height * 4);
 }
 
 void Loader::details::copyAccessorToDestination(std::byte* source, std::byte* destination, size_t count, size_t componentCount, size_t componentSize, size_t byteStride)

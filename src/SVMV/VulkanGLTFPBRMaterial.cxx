@@ -4,10 +4,10 @@
 using namespace SVMV;
 
 GLTFPBRMaterial::GLTFPBRMaterial(
-    vk::raii::Device* device, VmaAllocator memoryAllocator, const vk::raii::RenderPass& renderPass, const vk::raii::DescriptorSetLayout& globalDescriptorSetLayout,
-    VulkanUtilities::DescriptorAllocator* descriptorAllocator, VulkanDescriptorWriter* descriptorWriter, const shaderc::Compiler& compiler
+    vk::raii::Device* device, VmaAllocator memoryAllocator, VulkanUtilities::ImmediateSubmit* immediateSubmit, const vk::raii::RenderPass& renderPass,
+    const vk::raii::DescriptorSetLayout& globalDescriptorSetLayout, VulkanUtilities::DescriptorAllocator* descriptorAllocator, VulkanDescriptorWriter* descriptorWriter, const shaderc::Compiler& compiler
 )
-    : _device(device), _memoryAllocator(memoryAllocator), _descriptorAllocator(descriptorAllocator), _descriptorWriter(descriptorWriter)
+    : _device(device), _memoryAllocator(memoryAllocator), _immediateSubmit(immediateSubmit), _descriptorAllocator(descriptorAllocator), _descriptorWriter(descriptorWriter)
 {
     _vertexShader = VulkanShader(*_device, compiler, VulkanShader::ShaderType::VERTEX, "shader.vert");
     _fragmentShader = VulkanShader(*_device, compiler, VulkanShader::ShaderType::FRAGMENT, "shader.frag");
@@ -16,10 +16,12 @@ GLTFPBRMaterial::GLTFPBRMaterial(
     descriptorSetLayoutBingings[0].setBinding(0);
     descriptorSetLayoutBingings[0].setDescriptorCount(1);
     descriptorSetLayoutBingings[0].setDescriptorType(vk::DescriptorType::eUniformBuffer);
+    descriptorSetLayoutBingings[0].setStageFlags(vk::ShaderStageFlagBits::eVertex);
 
     descriptorSetLayoutBingings[1].setBinding(1);
     descriptorSetLayoutBingings[1].setDescriptorCount(1);
     descriptorSetLayoutBingings[1].setDescriptorType(vk::DescriptorType::eCombinedImageSampler);
+    descriptorSetLayoutBingings[1].setStageFlags(vk::ShaderStageFlagBits::eFragment);
 
     vk::DescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo;
     descriptorSetLayoutCreateInfo.setBindings(descriptorSetLayoutBingings);
@@ -48,6 +50,7 @@ GLTFPBRMaterial::GLTFPBRMaterial(GLTFPBRMaterial&& other) noexcept
     this->_memoryAllocator = std::move(other._memoryAllocator);
     this->_immediateSubmit = other._immediateSubmit;
     this->_descriptorAllocator = other._descriptorAllocator;
+    this->_descriptorWriter = other._descriptorWriter;
 
     this->_pipeline = std::move(other._pipeline);
     this->_pipelineLayout = std::move(other._pipelineLayout);
@@ -57,10 +60,12 @@ GLTFPBRMaterial::GLTFPBRMaterial(GLTFPBRMaterial&& other) noexcept
     this->_fragmentShader = std::move(other._fragmentShader);
 
     this->_resources = std::move(other._resources);
+    this->_descriptorSets = std::move(other._descriptorSets);
 
     other._device = nullptr;
     other._immediateSubmit = nullptr;
     other._descriptorAllocator = nullptr;
+    other._descriptorWriter = nullptr;
 }
 
 GLTFPBRMaterial& GLTFPBRMaterial::operator=(GLTFPBRMaterial&& other) noexcept
@@ -71,6 +76,7 @@ GLTFPBRMaterial& GLTFPBRMaterial::operator=(GLTFPBRMaterial&& other) noexcept
         this->_memoryAllocator = std::move(other._memoryAllocator);
         this->_immediateSubmit = other._immediateSubmit;
         this->_descriptorAllocator = other._descriptorAllocator;
+        this->_descriptorWriter = other._descriptorWriter;
 
         this->_pipeline = std::move(other._pipeline);
         this->_pipelineLayout = std::move(other._pipelineLayout);
@@ -80,26 +86,93 @@ GLTFPBRMaterial& GLTFPBRMaterial::operator=(GLTFPBRMaterial&& other) noexcept
         this->_fragmentShader = std::move(other._fragmentShader);
 
         this->_resources = std::move(other._resources);
+        this->_descriptorSets = std::move(other._descriptorSets);
 
         other._device = nullptr;
         other._immediateSubmit = nullptr;
         other._descriptorAllocator = nullptr;
+        other._descriptorWriter = nullptr;
     }
     
     return *this;
 }
 
-std::shared_ptr<vk::raii::DescriptorSet> GLTFPBRMaterial::createDescriptorSet(std::shared_ptr<Material> material)
+vk::raii::DescriptorSet* GLTFPBRMaterial::createDescriptorSet(std::shared_ptr<Material> material)
 {
-    return std::make_shared<vk::raii::DescriptorSet>(nullptr);
+    vk::raii::DescriptorSet descriptorSet = _descriptorAllocator->allocateSet(_descriptorSetLayout);
+    MaterialResources resources;
+
+    // Uniform parameters
+    GLTFPBRMaterial::MaterialUniformParameters uniformParameters;
+
+    // ~~~~~~~~~~~~~~~~~~ Base color factor ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    if (material->properties.contains("baseColorFactor"))
+    {
+        try
+        {
+            FloatVector4Property* baseColorFactorProperty = dynamic_cast<FloatVector4Property*>(material->properties["baseColorFactor"].get());
+            uniformParameters.baseColorFactor = baseColorFactorProperty->data;
+        }
+        catch (std::bad_cast)
+        {
+            uniformParameters.baseColorFactor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+        }
+    }
+
+    resources.uniformBuffer = VulkanUniformBuffer(_device, _memoryAllocator, sizeof(GLTFPBRMaterial::MaterialUniformParameters));
+    resources.uniformBuffer.setData(&uniformParameters, sizeof(GLTFPBRMaterial::MaterialUniformParameters));
+
+    // Textures
+    // ~~~~~~~~~~~~~~~~~~ Base color texture ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    if (material->properties.contains("baseColorTexture"))
+    {
+        try
+        {
+            TextureProperty* baseColorFactorProperty = dynamic_cast<TextureProperty*>(material->properties["baseColorTexture"].get());
+            resources.baseColorImage = VulkanImage(
+                _device, _immediateSubmit, _memoryAllocator, vk::Extent2D{ baseColorFactorProperty->data->width, baseColorFactorProperty->data->height },
+                vk::Format::eR8G8B8A8Srgb, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, baseColorFactorProperty->data->data.get(),
+                baseColorFactorProperty->data->size
+            );
+
+            vk::SamplerCreateInfo samplerCreateInfo;
+            samplerCreateInfo.setMagFilter(vk::Filter::eLinear);
+            samplerCreateInfo.setMinFilter(vk::Filter::eLinear);
+            samplerCreateInfo.setAddressModeU(vk::SamplerAddressMode::eRepeat);
+            samplerCreateInfo.setAddressModeV(vk::SamplerAddressMode::eRepeat);
+            samplerCreateInfo.setAddressModeW(vk::SamplerAddressMode::eRepeat);
+            samplerCreateInfo.setAnisotropyEnable(vk::False);
+            samplerCreateInfo.setMaxAnisotropy(4);
+            samplerCreateInfo.setBorderColor(vk::BorderColor::eIntOpaqueBlack);
+            samplerCreateInfo.setUnnormalizedCoordinates(vk::False);
+            samplerCreateInfo.setCompareEnable(vk::False);
+            samplerCreateInfo.setCompareOp(vk::CompareOp::eAlways);
+            samplerCreateInfo.setMipmapMode(vk::SamplerMipmapMode::eLinear);
+
+            resources.baseColorSampler = vk::raii::Sampler(*_device, samplerCreateInfo);
+        }
+        catch (std::bad_cast)
+        {
+            // TODO: set some default texture and sampler
+        }
+    }
+
+    // Write to descriptor set
+    _descriptorWriter->writeBuffer(descriptorSet, resources.uniformBuffer, 0, 0, sizeof(GLTFPBRMaterial::MaterialUniformParameters), vk::DescriptorType::eUniformBuffer);
+    _descriptorWriter->writeImageAndSampler(descriptorSet, resources.baseColorImage, vk::ImageLayout::eShaderReadOnlyOptimal, resources.baseColorSampler, 1);
+
+    _resources.push_back(std::move(resources));
+    _descriptorSets.push_back(std::move(descriptorSet));
+
+    return &_descriptorSets.back();
 }
 
-const vk::raii::Pipeline* SVMV::GLTFPBRMaterial::getPipeline() const
+const vk::raii::Pipeline* GLTFPBRMaterial::getPipeline() const
 {
     return &_pipeline;
 }
 
-const vk::raii::PipelineLayout* SVMV::GLTFPBRMaterial::getPipelineLayout() const
+const vk::raii::PipelineLayout* GLTFPBRMaterial::getPipelineLayout() const
 {
     return &_pipelineLayout;
 }
