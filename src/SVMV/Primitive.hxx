@@ -1,23 +1,23 @@
 #pragma once
 
-#include <SVMV/Attribute.hxx>
+#include <glm/glm.hpp>
+#include <glm/ext.hpp>
 
 #include <vector>
+#include <set>
 #include <memory>
 #include <algorithm>
 
 namespace SVMV
 {
-    class Material;
+    struct Attribute;
+    struct Material;
 
-    class Primitive
+    struct Primitive
     {
-    public:
-        std::vector<std::shared_ptr<Attribute>> attributes;
         std::vector<uint32_t> indices;
-        std::shared_ptr<Material> material;
+        std::vector<Attribute> attributes;
 
-    public:
-        std::shared_ptr<Attribute> getAttribute(Attribute::AttributeType type);
+        std::shared_ptr<Material> material;
     };
 }

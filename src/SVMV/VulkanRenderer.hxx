@@ -1,14 +1,28 @@
 #pragma once
 
-#include <vulkan/vulkan.hpp>
+#include <vulkan/vulkan_raii.hpp>
+#include <vk_mem_alloc.h>
 #include <VkBootstrap.h>
 #include <shaderc/shaderc.hpp>
 
 #include <GLFW/glfw3.h>
 
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 #include <SVMV/Scene.hxx>
-#include <SVMV/VulkanVertex.hxx>
+#include <SVMV/Node.hxx>
+#include <SVMV/Mesh.hxx>
+#include <SVMV/Primitive.hxx>
+#include <SVMV/Attribute.hxx>
+#include <SVMV/VulkanInitialization.hxx>
 #include <SVMV/VulkanScene.hxx>
+#include <SVMV/VulkanBuffer.hxx>
+#include <SVMV/VulkanShaderStructures.hxx>
+#include <SVMV/VulkanDescriptorWriter.hxx>
 
 #include <memory>
 #include <vector>
@@ -20,92 +34,89 @@ namespace SVMV
 {
     class VulkanRenderer
     {
-        friend class VulkanScene;
-
     public:
-        bool resized;
+        VulkanRenderer() = default;
+        VulkanRenderer(int width, int height, const std::string& name, unsigned framesInFlight);
 
-    private:
-        std::shared_ptr<VulkanScene> _scene;
+        VulkanRenderer(const VulkanRenderer&) = delete;
+        VulkanRenderer& operator=(const VulkanRenderer&) = delete;
 
-        unsigned _framesInFlight;
-        unsigned _activeFrame;
+        VulkanRenderer(VulkanRenderer&&) = delete;
+        VulkanRenderer& operator=(VulkanRenderer&&) = delete;
 
-        shaderc::Compiler _shaderCompiler;
-
-        // seperate fields for bootstrap objects because they only contain c-style vulkan handles
-        vkb::Instance _bootstrapInstance;
-        vkb::Device _bootstrapDevice;
-        vkb::Swapchain _bootstrapSwapchain;
-
-        vk::Instance _instance;
-        vk::DebugUtilsMessengerEXT _messenger;
-        vk::PhysicalDevice _physicalDevice;
-        vk::Device _device;
-        vk::SwapchainKHR _swapchain;
-
-        vk::SurfaceKHR _surface;
-
-        vk::Queue _graphicsQueue;
-        unsigned _graphicsQueueFamily;
-        vk::Queue _presentQueue;
-        unsigned _presentQueueFamily;
-
-        std::vector<vk::Image> _images;
-        std::vector<vk::ImageView> _imageViews;
-        std::vector<vk::Framebuffer> _framebuffers;
-
-        vk::RenderPass _renderPass;
-        vk::PipelineLayout _pipelineLayout;
-        vk::Pipeline _pipeline;
-
-        vk::CommandPool _commandPool;
-        std::vector<vk::CommandBuffer> _commandBuffers;
-
-        std::vector<vk::Semaphore> _imageReadySemaphores;
-        std::vector<vk::Semaphore> _renderCompleteSemaphores;
-        std::vector<vk::Fence> _inFlightFences;
-
-        vk::Buffer _vertexBuffer;
-        vk::DeviceMemory _vertexBufferMemory;
-
-    public:
-        VulkanRenderer();
-        VulkanRenderer(unsigned framesInFlight);
-
-        void createInstance();
-        void initializeRenderer(vk::SurfaceKHR surface);
-        void loadScene(std::shared_ptr<Scene> scene);
+        ~VulkanRenderer() = default;
 
         void draw();
 
-        void cleanup();
+        void loadScene(std::shared_ptr<Scene> scene);
 
-        vk::Instance getInstance();
-        vk::Device getDevice();
+        void setCamera(glm::vec3 position, glm::vec3 lookDirection, glm::vec3 upDirection, float fieldOfView);
+
+        [[nodiscard]] const vk::Device getDevice() const noexcept;
+        [[nodiscard]] GLFWwindow* getWindow() const noexcept;
 
     private:
-        std::string readFile(const std::string& file);
-        std::string preprocessShader(const std::string& name, const std::string& shaderCode, shaderc_shader_kind shaderKind);
-        std::vector<uint32_t> compileShader(const std::string& name, const std::string& shaderCode, shaderc_shader_kind shaderKind, bool optimize);
+        void recordDrawCommands(int activeFrame, const vk::raii::Framebuffer& framebuffer);
 
-        uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags propertyFlags);
+        void preprocessScene(std::shared_ptr<Scene> scene); // TODO: generate material contexts and materials that appear in the scene, get attribute sizes and create the buffers in VulkanScene
+        void generateDrawablesFromScene(std::shared_ptr<Node> node, glm::mat4 baseTransform); // TODO: generate drawables and load mesh data to staging buffers, recursive
+        void copyStagingBuffersToGPUBuffers(); // TODO: in the name
 
-        void setSurface(vk::SurfaceKHR surface);
-
-        void createDevice();
-        void getQueues();
-        void createSwapchain();
         void recreateSwapchain();
-
-        vk::ShaderModule createShaderModule(const std::vector<uint32_t> code);
         void createRenderPass();
-        void createGraphicsPipeline();
-        void createFramebuffers();
-        void createCommandPool();
-        void createVertexBuffer();
-        void createCommandBuffers();
-        void recordCommandBuffer(vk::CommandBuffer buffer, uint32_t image);
-        void createSynchronisationObjects();
+        void createGlobalDescriptorSets();
+
+        static void resized(GLFWwindow* window, int width, int height);
+        static void minimized(GLFWwindow* window, int minimized);
+
+    private:
+        VulkanUtilities::GLFWwindowWrapper _window;
+        shaderc::Compiler _shaderCompiler;
+
+        bool _resized           { false };
+        int _framesInFlight     { 0 };
+        int _activeFrame        { 0 };
+
+        glm::mat4 _projectionMatrix     { 1.0f };
+        glm::mat4 _viewMatrix           { 1.0f };
+
+        vk::Extent2D _swapchainExtent   { 0 };
+        vk::Format _swapchainFormat     { vk::Format::eUndefined };
+
+        vk::raii::Context _context;
+
+        vk::raii::Instance _instance                { nullptr };
+        vk::raii::DebugUtilsMessengerEXT _messenger { nullptr };
+        vk::raii::SurfaceKHR _surface               { nullptr };
+        vk::raii::PhysicalDevice _physicalDevice    { nullptr };
+        vk::raii::Device _device                    { nullptr };
+        vk::raii::SwapchainKHR _swapchain           { nullptr };
+        vk::raii::RenderPass _renderPass            { nullptr };
+        vk::raii::CommandPool _commandPool          { nullptr };
+        vk::raii::Queue _graphicsQueue              { nullptr };
+        int _graphicsQueueIndex                     { 0 };
+        vk::raii::Queue _presentQueue               { nullptr };
+        int _presentQueueIndex                      { 0 };
+
+        vk::raii::CommandBuffers _drawCommandBuffers{ nullptr };
+
+        std::vector<vk::raii::ImageView> _imageViews;
+        std::vector<vk::raii::Framebuffer> _framebuffers;
+
+        std::vector<vk::raii::Semaphore> _imageReadySemaphores;
+        std::vector<vk::raii::Semaphore> _renderCompleteSemaphores;
+        std::vector<vk::raii::Fence> _inFlightFences;
+
+        vk::raii::DescriptorSetLayout _globalDescriptorSetLayout    { nullptr };
+        std::vector<VulkanUniformBuffer> _globalDescriptorSetBuffers;
+        std::vector<vk::raii::DescriptorSet> _globalDescriptorSets;
+
+        VulkanUtilities::DescriptorAllocator _descriptorAllocator;
+        VulkanDescriptorWriter _descriptorWriter;
+        VulkanUtilities::VmaAllocatorWrapper _vmaAllocator;
+        VulkanUtilities::ImmediateSubmit _immediateSubmit;
+
+        VulkanScene _scene;
+        VulkanInitilization _initilization;
     };
 }

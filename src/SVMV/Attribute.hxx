@@ -1,25 +1,72 @@
 #pragma once
 
 #include <memory>
-#include <vector>
+#include <cstddef>
 
 namespace SVMV
 {
-    class Attribute
+    enum class Type : int
     {
-    public:
-        enum class AttributeType
+        UNDEFINED, FLOAT, DOUBLE, UINT16, UINT32, INT16, INT32
+    };
+
+    enum class AttributeType : int
+    {
+        UNDEFINED, POSITION, NORMAL, TANGENT, TEXCOORD_0, COLOR_0
+    };
+
+    struct Attribute
+    {
+        Attribute() = default;
+
+        Attribute(const Attribute&) = delete;
+        Attribute& operator=(const Attribute&) = delete;
+
+        Attribute(Attribute&& other) noexcept
         {
-            POSITION, COLOR, TEXCOORD, NORMAL, TANGENT, BINORMAL
-        };
+            this->attributeType = other.attributeType;
+            this->elements = std::move(other.elements);
+            this->type = other.type;
+            this->size = other.size;
+            this->count = other.count;
+            this->componentCount = other.componentCount;
 
-    public:
-        std::vector<uint8_t> data;
-        size_t count;
-        size_t components;
-        size_t componentSize; // in bytes
-        size_t stride; // in bytes
+            other.attributeType = AttributeType::UNDEFINED;
+            other.type = Type::UNDEFINED;
+            other.size = 0;
+            other.count = 0;
+            other.componentCount = 0;
+        }
 
-        AttributeType type;
+        Attribute& operator=(Attribute&& other) noexcept
+        {
+            if (this != &other)
+            {
+                this->attributeType = other.attributeType;
+                this->elements = std::move(other.elements);
+                this->type = other.type;
+                this->size = other.size;
+                this->count = other.count;
+                this->componentCount = other.componentCount;
+
+                other.attributeType = AttributeType::UNDEFINED;
+                other.type = Type::UNDEFINED;
+                other.size = 0;
+                other.count = 0;
+                other.componentCount = 0;
+            }
+
+            return *this;
+        }
+
+        ~Attribute() = default;
+
+        AttributeType attributeType{ AttributeType::UNDEFINED };
+        std::unique_ptr<std::byte[]> elements{nullptr};
+
+        Type type{ Type::UNDEFINED };
+        size_t size{ 0 };
+        size_t count{ 0 };
+        int componentCount{ 0 };
     };
 }

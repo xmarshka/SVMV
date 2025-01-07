@@ -5,11 +5,10 @@
 
 namespace SVMV
 {
-    class Primitive;
+    struct Primitive;
 
-    class Mesh
+    struct Mesh
     {
-    public:
         std::vector<std::shared_ptr<Primitive>> primitives;
     };
 }

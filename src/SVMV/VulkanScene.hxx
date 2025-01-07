@@ -1,66 +1,42 @@
 #pragma once
 
-#include <vulkan/vulkan.hpp>
-#include <VkBootstrap.h>
-#include <vk_mem_alloc.h>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-
-#include <SVMV/Scene.hxx>
-#include <SVMV/Node.hxx>
-#include <SVMV/Mesh.hxx>
 #include <SVMV/Primitive.hxx>
 #include <SVMV/Attribute.hxx>
-#include <SVMV/VulkanDrawableCollection.hxx>
-#include <SVMV/VulkanDrawableCategory.hxx>
 #include <SVMV/VulkanDrawable.hxx>
-#include <SVMV/VulkanShader.hxx>
+#include <SVMV/VulkanGLTFPBRMaterial.hxx>
+#include <SVMV/VulkanMaterialContext.hxx>
 
 #include <vector>
-#include <unordered_map>
-
-#define VULKAN_SCENE_ATTRIBUTE_POSITION_SIZE 3 * 4
+#include <string>
+#include <memory>
 
 namespace SVMV
 {
-    class VulkanScene
+    struct VertexAttribute
     {
-    public:
-        struct PushConstants
-        {
-            glm::mat4 mvpMatrix;
-            vk::DeviceAddress positionsAddress;
-        };
+        AttributeType type{ AttributeType::UNDEFINED };
 
-    private:
-        vk::Device _device;
-        vk::RenderPass _renderPass;
+        VulkanGPUBuffer gpuBuffer;
+        vk::DeviceAddress gpuBufferAddressCounter{ 0 };
 
-        vkb::Swapchain _swapchain;
+        VulkanStagingBuffer stagingBuffer;
+    };
 
-        vk::CommandPool _commandPool;
-        vk::Queue _queue;
-        VmaAllocator _allocator;
+    struct VulkanScene
+    {
+        VulkanGPUBuffer indexGPUBuffer;
+        VulkanStagingBuffer indexStagingBuffer;
+        int indexCounter{ 0 };
 
-        std::unordered_map<VulkanDrawableCategory, VulkanDrawableCollection> _collectionMap;
+        VulkanGPUBuffer modelMatrixGPUBuffer;
+        VulkanStagingBuffer modelMatrixStagingBuffer;
+        int modelMatrixCounter{ 0 };
 
-    public:
-        VulkanScene();
-        VulkanScene(vk::PhysicalDevice physicalDevice, vk::Instance instance, vk::Device device, vk::CommandPool commandPool, vk::Queue queue);
+        std::vector<VertexAttribute> attributes; // holds the buffers containing attribute data for all drawables in the scene
 
-        ~VulkanScene();
+        std::unordered_map<std::string, VulkanMaterialContext> contexts;
+        std::unordered_map<std::shared_ptr<Primitive>, VulkanDrawable> primitiveDrawableMap;
 
-        void setScene(std::shared_ptr<Scene> scene, vk::RenderPass renderPass, vkb::Swapchain swapchain, unsigned int framesInFlight);
-        std::vector<vk::CommandBuffer> recordFrameCommandBuffers(unsigned int frame, vk::Framebuffer framebuffer, const unsigned int viewportWidth, const unsigned int viewportHeight);
-    
-    private:
-        void loadSceneToGPUMemory(std::shared_ptr<Scene> scene, vk::RenderPass renderPass, vkb::Swapchain swapchain, unsigned int framesInFlight);
-        void createCollectionPipelines(vk::RenderPass renderPass, vkb::Swapchain swapchain);
-        void createCollectionCommandBuffers(unsigned int framesInFlight);
-
-        void divideSceneIntoCategories(std::shared_ptr<Scene> scene);
-        void getCollectionSizes();
-        unsigned char getVertexAttributeCategory(const std::shared_ptr<Primitive> primitive);
+        GLTFPBRMaterial glTFPBRMaterial;
     };
 }
