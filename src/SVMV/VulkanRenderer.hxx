@@ -107,14 +107,14 @@ namespace SVMV
         std::vector<vk::raii::Semaphore> _renderCompleteSemaphores;
         std::vector<vk::raii::Fence> _inFlightFences;
 
-        vk::raii::DescriptorSetLayout _globalDescriptorSetLayout    { nullptr };
-        std::vector<VulkanUniformBuffer> _globalDescriptorSetBuffers;
-        std::vector<vk::raii::DescriptorSet> _globalDescriptorSets;
-
         VulkanUtilities::DescriptorAllocator _descriptorAllocator;
         VulkanDescriptorWriter _descriptorWriter;
         VulkanUtilities::VmaAllocatorWrapper _vmaAllocator;
         VulkanUtilities::ImmediateSubmit _immediateSubmit;
+
+        vk::raii::DescriptorSetLayout _globalDescriptorSetLayout    { nullptr };
+        std::vector<VulkanUniformBuffer> _globalDescriptorSetBuffers;
+        std::vector<vk::raii::DescriptorSet> _globalDescriptorSets;
 
         VulkanScene _scene;
         VulkanInitilization _initilization;
