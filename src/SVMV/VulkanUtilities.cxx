@@ -199,6 +199,7 @@ std::shared_ptr<vk::raii::DescriptorPool> VulkanUtilities::DescriptorAllocator::
     vk::DescriptorPoolCreateInfo info;
     info.setMaxSets(_setsPerPool);
     info.setPoolSizes(poolSizes);
+    info.setFlags(vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet);
 
     std::shared_ptr<vk::raii::DescriptorPool> pool = std::make_shared<vk::raii::DescriptorPool>(*_device, info);
 
