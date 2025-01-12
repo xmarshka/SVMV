@@ -39,7 +39,7 @@ void InputHandler::signalEvents()
     {
         for (const auto& controller : _controllers)
         {
-            controller->InputEvent(_eventQueue.front()->type, _eventQueue.front());
+            controller->InputEvent(_eventQueue.front());
         }
 
         _eventQueue.pop();
@@ -51,7 +51,7 @@ void InputHandler::signalEvents()
         {
             if (key.second) // key is held
             {
-                controller->InputEvent(Input::EventType::KEY, std::make_shared<Input::KeyEvent>(static_cast<Input::KeyCode>(key.first), Input::KeyState::HELD));
+                controller->InputEvent(std::make_shared<Input::KeyEvent>(static_cast<Input::KeyCode>(key.first), Input::KeyState::HELD));
             }
         }
     }

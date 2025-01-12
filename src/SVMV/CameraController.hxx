@@ -22,7 +22,7 @@ namespace SVMV
 
         ~CameraControllerNoclip() = default;
 
-        void InputEvent(Input::EventType type, std::shared_ptr<Input::Event> inputEvent) override;
+        void InputEvent(std::shared_ptr<Input::Event> inputEvent) override;
 
     private:
         bool _active        { false };

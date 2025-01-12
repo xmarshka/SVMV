@@ -16,7 +16,7 @@ namespace SVMV
     public:
         virtual ~Controller() = default;
 
-        virtual void InputEvent(Input::EventType type, std::shared_ptr<Input::Event> inputEvent) {}
+        virtual void InputEvent(std::shared_ptr<Input::Event> inputEvent) {}
     };
 
     class InputHandler

@@ -27,14 +27,14 @@ namespace SVMV
 
         struct Event
         {
+            virtual EventType getType() { return EventType::UNDEFINED; }
             virtual ~Event() = default;
-
-            EventType type;
         };
 
         struct MouseMovementEvent : public Event
         {
             MouseMovementEvent(MouseDelta mouseDelta) : mouseDelta(mouseDelta) {}
+            EventType getType() override { return EventType::MOUSE_MOVEMENT; }
 
             MouseDelta mouseDelta;
         };
@@ -42,6 +42,7 @@ namespace SVMV
         struct KeyEvent : public Event
         {
             KeyEvent(KeyCode keyCode, KeyState keyState) : keyCode(keyCode), keyState(keyState) {}
+            EventType getType() override { return EventType::KEY; }
 
             KeyCode keyCode;
             KeyState keyState;

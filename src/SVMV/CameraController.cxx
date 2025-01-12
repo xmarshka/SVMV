@@ -37,13 +37,20 @@ CameraControllerNoclip& CameraControllerNoclip::operator=(CameraControllerNoclip
     return *this;
 }
 
-void CameraControllerNoclip::InputEvent(Input::EventType type, std::shared_ptr<Input::Event> inputEvent)
+void CameraControllerNoclip::InputEvent(std::shared_ptr<Input::Event> inputEvent)
 {
-    if (type == Input::EventType::KEY)
+    if (inputEvent->getType() == Input::EventType::KEY)
     {
         if (reinterpret_cast<Input::KeyEvent*>(inputEvent.get())->keyCode == Input::KeyCode::W)
         {
-            std::cout << "W\n";
+            if (reinterpret_cast<Input::KeyEvent*>(inputEvent.get())->keyState == Input::KeyState::PRESSED)
+            {
+                std::cout << "W PRESSED\n";
+            }
+            if (reinterpret_cast<Input::KeyEvent*>(inputEvent.get())->keyState == Input::KeyState::RELEASED)
+            {
+                std::cout << "W RELEASED\n";
+            }
         }
     }
 }
