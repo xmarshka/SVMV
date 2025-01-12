@@ -69,26 +69,6 @@ namespace SVMV
             unsigned _setsPerPool{ 8 }; // increased for each new pool, similiar to a vector
         };
 
-        class GLFWwindowWrapper
-        {
-        public:
-            GLFWwindowWrapper() = default;
-            GLFWwindowWrapper(const std::string& name, int width, int height, VulkanRenderer* rendererHandle, GLFWframebuffersizefun resizeCallback, GLFWwindowiconifyfun minimizedCallback);
-
-            GLFWwindowWrapper(const GLFWwindowWrapper&) = delete;
-            GLFWwindowWrapper& operator=(const GLFWwindowWrapper&) = delete;
-
-            GLFWwindowWrapper(GLFWwindowWrapper&& other) noexcept;
-            GLFWwindowWrapper& operator=(GLFWwindowWrapper&& other) noexcept;
-
-            ~GLFWwindowWrapper();
-
-            GLFWwindow* getWindow() const noexcept;
-            vk::raii::SurfaceKHR createSurface(const vk::raii::Instance& instance) const noexcept;
-        private:
-            GLFWwindow* _window{ nullptr };
-        };
-
         class VmaAllocatorWrapper
         {
         public:

@@ -9,6 +9,7 @@ set(SRC_DIR ${CMAKE_CURRENT_LIST_DIR}/src/${PROJECT_NAME})
 
 set(SVMV_INCLUDES
 	${SRC_DIR}/Application.hxx
+	${SRC_DIR}/GLFWwindowWrapper.hxx
 	${SRC_DIR}/VulkanInitialization.hxx
 	${SRC_DIR}/VulkanRenderer.hxx
 	${SRC_DIR}/VulkanShader.hxx
@@ -30,12 +31,16 @@ set(SVMV_INCLUDES
 	${SRC_DIR}/Attribute.hxx
 	${SRC_DIR}/Material.hxx
 	${SRC_DIR}/Property.hxx
-	${SRC_DIR}/Texture.hxx)
+	${SRC_DIR}/Texture.hxx
+	${SRC_DIR}/Input.hxx
+	${SRC_DIR}/InputHandler.hxx
+	${SRC_DIR}/CameraController.hxx)
 
 set(SVMV_SOURCES
 	${SRC_DIR}/main.cxx
 	${SRC_DIR}/VmaUsage.cxx
 	${SRC_DIR}/Application.cxx
+	${SRC_DIR}/GLFWwindowWrapper.cxx
 	${SRC_DIR}/VulkanInitialization.cxx
 	${SRC_DIR}/VulkanRenderer.cxx
 	${SRC_DIR}/VulkanShader.cxx
@@ -44,7 +49,10 @@ set(SVMV_SOURCES
 	${SRC_DIR}/VulkanGLTFPBRMaterial.cxx
 	${SRC_DIR}/VulkanDescriptorWriter.cxx
 	${SRC_DIR}/VulkanUtilities.cxx
-	${SRC_DIR}/Loader.cxx)
+	${SRC_DIR}/Loader.cxx
+	${SRC_DIR}/Input.cxx
+	${SRC_DIR}/InputHandler.cxx
+	${SRC_DIR}/CameraController.cxx)
 
 find_package(Vulkan REQUIRED COMPONENTS shaderc_combined)
 find_package(VulkanMemoryAllocator CONFIG REQUIRED)

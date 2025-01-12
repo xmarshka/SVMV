@@ -61,6 +61,13 @@ namespace SVMV
         const vk::raii::PipelineLayout* getPipelineLayout() const;
 
     private:
+        void processUniformParameters(vk::raii::DescriptorSet& descriptorSet, MaterialResources& resources, std::shared_ptr<Material> material);
+        void processTextures(vk::raii::DescriptorSet& descriptorSet, MaterialResources& resources, std::shared_ptr<Material> material);
+
+        // TODO: change the TextureProperty to be a reference instead
+        void processCombinedImageSampler(vk::raii::DescriptorSet& descriptorSet, int binding, VulkanImage& image, vk::raii::Sampler& sampler, const TextureProperty* textureProperty);
+
+    private:
         vk::raii::Device* _device                                       { nullptr };
         VmaAllocator _memoryAllocator                                   { nullptr };
         VulkanUtilities::ImmediateSubmit* _immediateSubmit              { nullptr };

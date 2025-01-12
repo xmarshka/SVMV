@@ -5,14 +5,13 @@
 #include <VkBootstrap.h>
 #include <shaderc/shaderc.hpp>
 
-#include <GLFW/glfw3.h>
-
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <SVMV/GLFWwindowWrapper.hxx>
 #include <SVMV/Scene.hxx>
 #include <SVMV/Node.hxx>
 #include <SVMV/Mesh.hxx>
@@ -36,7 +35,7 @@ namespace SVMV
     {
     public:
         VulkanRenderer() = default;
-        VulkanRenderer(int width, int height, const std::string& name, unsigned framesInFlight);
+        VulkanRenderer(int width, int height, const std::string& name, unsigned framesInFlight, const GLFWwindowWrapper& window);
 
         VulkanRenderer(const VulkanRenderer&) = delete;
         VulkanRenderer& operator=(const VulkanRenderer&) = delete;
@@ -52,8 +51,11 @@ namespace SVMV
 
         void setCamera(glm::vec3 position, glm::vec3 lookDirection, glm::vec3 upDirection, float fieldOfView);
 
+        void resize(int width, int height);
+        void minimize();
+        void maximize();
+
         [[nodiscard]] const vk::Device getDevice() const noexcept;
-        [[nodiscard]] GLFWwindow* getWindow() const noexcept;
 
     private:
         void recordDrawCommands(int activeFrame, const vk::raii::Framebuffer& framebuffer);
@@ -66,11 +68,7 @@ namespace SVMV
         void createRenderPass();
         void createGlobalDescriptorSets();
 
-        static void resized(GLFWwindow* window, int width, int height);
-        static void minimized(GLFWwindow* window, int minimized);
-
     private:
-        VulkanUtilities::GLFWwindowWrapper _window;
         shaderc::Compiler _shaderCompiler;
 
         bool _resized           { false };

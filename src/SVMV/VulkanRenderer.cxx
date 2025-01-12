@@ -2,14 +2,13 @@
 
 using namespace SVMV;
 
-VulkanRenderer::VulkanRenderer(int width, int height, const std::string& name, unsigned framesInFlight)
+VulkanRenderer::VulkanRenderer(int width, int height, const std::string& name, unsigned framesInFlight, const GLFWwindowWrapper& window)
     : _framesInFlight(framesInFlight)
 {
     _instance = _initilization.createInstance(_context, name, 1, 3);
     _messenger = _initilization.createDebugMessenger(_instance);
 
-    _window = VulkanUtilities::GLFWwindowWrapper(name, width, height, this, resized, minimized);
-    _surface = _window.createSurface(_instance);
+    _surface = window.createVulkanSurface(_instance);
 
     _physicalDevice = _initilization.createPhysicalDevice(_instance, std::vector<const char*>{ vk::KHRBufferDeviceAddressExtensionName }, _surface);
     _device = _initilization.createDevice(_physicalDevice);
@@ -145,14 +144,21 @@ void VulkanRenderer::setCamera(glm::vec3 position, glm::vec3 lookDirection, glm:
     _viewMatrix = glm::lookAt(position, position + lookDirection, upDirection);
 }
 
+void VulkanRenderer::resize(int width, int height)
+{
+}
+
+void VulkanRenderer::minimize()
+{
+}
+
+void VulkanRenderer::maximize()
+{
+}
+
 const vk::Device VulkanRenderer::getDevice() const noexcept
 {
     return (*_device);
-}
-
-GLFWwindow* VulkanRenderer::getWindow() const noexcept
-{
-    return _window.getWindow();
 }
 
 void VulkanRenderer::recordDrawCommands(int activeFrame, const vk::raii::Framebuffer& framebuffer)
@@ -416,15 +422,4 @@ void VulkanRenderer::createGlobalDescriptorSets()
         _globalDescriptorSetBuffers.push_back(VulkanUniformBuffer(&_device, _vmaAllocator.getAllocator(), sizeof(ShaderStructures::GlobalUniformBuffer)));
         _globalDescriptorSets.push_back(std::move(_descriptorAllocator.allocateSet(_globalDescriptorSetLayout)));
     }
-}
-
-void VulkanRenderer::resized(GLFWwindow* window, int width, int height)
-{
-    SVMV::VulkanRenderer* renderer = reinterpret_cast<SVMV::VulkanRenderer*>(glfwGetWindowUserPointer(window));
-    renderer->_resized = true;
-}
-
-void VulkanRenderer::minimized(GLFWwindow* window, int minimized)
-{
-    SVMV::VulkanRenderer* renderer = reinterpret_cast<SVMV::VulkanRenderer*>(glfwGetWindowUserPointer(window));
 }

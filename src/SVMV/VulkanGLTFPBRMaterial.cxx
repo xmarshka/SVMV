@@ -102,64 +102,8 @@ vk::raii::DescriptorSet* GLTFPBRMaterial::createDescriptorSet(std::shared_ptr<Ma
     vk::raii::DescriptorSet descriptorSet = _descriptorAllocator->allocateSet(_descriptorSetLayout);
     MaterialResources resources;
 
-    // Uniform parameters
-    GLTFPBRMaterial::MaterialUniformParameters uniformParameters;
-
-    // ~~~~~~~~~~~~~~~~~~ Base color factor ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    if (material->properties.contains("baseColorFactor"))
-    {
-        try
-        {
-            FloatVector4Property* baseColorFactorProperty = dynamic_cast<FloatVector4Property*>(material->properties["baseColorFactor"].get());
-            uniformParameters.baseColorFactor = baseColorFactorProperty->data;
-        }
-        catch (std::bad_cast)
-        {
-            uniformParameters.baseColorFactor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
-        }
-    }
-
-    resources.uniformBuffer = VulkanUniformBuffer(_device, _memoryAllocator, sizeof(GLTFPBRMaterial::MaterialUniformParameters));
-    resources.uniformBuffer.setData(&uniformParameters, sizeof(GLTFPBRMaterial::MaterialUniformParameters));
-
-    // Textures
-    // ~~~~~~~~~~~~~~~~~~ Base color texture ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    if (material->properties.contains("baseColorTexture"))
-    {
-        try
-        {
-            TextureProperty* baseColorFactorProperty = dynamic_cast<TextureProperty*>(material->properties["baseColorTexture"].get());
-            resources.baseColorImage = VulkanImage(
-                _device, _immediateSubmit, _memoryAllocator, vk::Extent2D{ baseColorFactorProperty->data->width, baseColorFactorProperty->data->height },
-                vk::Format::eR8G8B8A8Srgb, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, baseColorFactorProperty->data->data.get(),
-                baseColorFactorProperty->data->size
-            );
-
-            vk::SamplerCreateInfo samplerCreateInfo;
-            samplerCreateInfo.setMagFilter(vk::Filter::eLinear);
-            samplerCreateInfo.setMinFilter(vk::Filter::eLinear);
-            samplerCreateInfo.setAddressModeU(vk::SamplerAddressMode::eRepeat);
-            samplerCreateInfo.setAddressModeV(vk::SamplerAddressMode::eRepeat);
-            samplerCreateInfo.setAddressModeW(vk::SamplerAddressMode::eRepeat);
-            samplerCreateInfo.setAnisotropyEnable(vk::False);
-            samplerCreateInfo.setMaxAnisotropy(4);
-            samplerCreateInfo.setBorderColor(vk::BorderColor::eIntOpaqueBlack);
-            samplerCreateInfo.setUnnormalizedCoordinates(vk::False);
-            samplerCreateInfo.setCompareEnable(vk::False);
-            samplerCreateInfo.setCompareOp(vk::CompareOp::eAlways);
-            samplerCreateInfo.setMipmapMode(vk::SamplerMipmapMode::eLinear);
-
-            resources.baseColorSampler = vk::raii::Sampler(*_device, samplerCreateInfo);
-        }
-        catch (std::bad_cast)
-        {
-            // TODO: set some default texture and sampler
-        }
-    }
-
-    // Write to descriptor set
-    _descriptorWriter->writeBuffer(descriptorSet, resources.uniformBuffer, 0, 0, sizeof(GLTFPBRMaterial::MaterialUniformParameters), vk::DescriptorType::eUniformBuffer);
-    _descriptorWriter->writeImageAndSampler(descriptorSet, resources.baseColorImage, vk::ImageLayout::eShaderReadOnlyOptimal, resources.baseColorSampler, 1);
+    processUniformParameters(descriptorSet, resources, material);
+    processTextures(descriptorSet, resources, material);
 
     _resources.push_back(std::move(resources));
     _descriptorSets.push_back(std::move(descriptorSet));
@@ -177,74 +121,69 @@ const vk::raii::PipelineLayout* GLTFPBRMaterial::getPipelineLayout() const
     return &_pipelineLayout;
 }
 
-//std::shared_ptr<MaterialInstance> GLTFPBRMaterial::generateMaterialInstance(std::shared_ptr<Material> material)
-//{
-//    std::shared_ptr<MaterialInstance> instance = std::make_shared<MaterialInstance>();
-//    instance->materialName = MaterialName::GLTFPBR;
-//
-//    MaterialResources resources = { .colorSampler = vk::raii::Sampler(nullptr) };
-//
-//    // get descriptor set
-//    instance->descriptorSet = _descriptorAllocator->allocateSet(_descriptorSetLayout);
-//
-//    // create buffer for uniform data and image for texture
-//    auto bufferUsage = vk::BufferUsageFlagBits::eUniformBuffer;
-//    resources.buffer = std::make_shared<VulkanBuffer>();
-//    resources.buffer->create(_device, _memoryAllocator, sizeof(MaterialUniformParameters), bufferUsage, VMA_MEMORY_USAGE_CPU_TO_GPU);
-//
-//    void* mappedData = nullptr;
-//    vmaMapMemory(_memoryAllocator, resources.buffer->allocation, &mappedData);
-//    MaterialUniformParameters* data = reinterpret_cast<MaterialUniformParameters*>(mappedData);
-//
-//    data->baseColorFactor = material->baseColorFactor;
-//    data->roughnessMetallicFactors[0] = material->metallicFactor;
-//    data->roughnessMetallicFactors[1] = material->roughnessFactor;
-//
-//    auto imageUsage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst;
-//    resources.colorImage = std::make_shared<VulkanImage>();
-//    resources.colorImage->create(_device, _memoryAllocator, material->diffuseTexture->width, material->diffuseTexture->height, vk::Format::eR8G8B8A8Srgb, imageUsage, _immediateSubmit);
-//    resources.colorImage->copyDataToImage(material->diffuseTexture->data.data(), material->diffuseTexture->data.size());
-//
-//    vk::SamplerCreateInfo samplerCreateInfo = {};
-//    samplerCreateInfo.sType = vk::StructureType::eSamplerCreateInfo;
-//    samplerCreateInfo.magFilter = vk::Filter::eLinear;
-//    samplerCreateInfo.minFilter = vk::Filter::eLinear;
-//
-//    resources.colorSampler = (*_device).createSampler(samplerCreateInfo);
-//
-//    // write to the descriptor set
-//    vk::DescriptorBufferInfo bufferInfo = {};
-//    bufferInfo.buffer = resources.buffer->buffer;
-//    bufferInfo.offset = 0;
-//    bufferInfo.range = sizeof(MaterialUniformParameters);
-//
-//    vk::DescriptorImageInfo imageInfo = {};
-//    imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-//    imageInfo.imageView = resources.colorImage->imageView;
-//    imageInfo.sampler = resources.colorSampler;
-//
-//    vk::WriteDescriptorSet writes[2] = {};
-//
-//    writes[0].dstBinding = 0;
-//    writes[0].dstSet = instance->descriptorSet;
-//    writes[0].descriptorCount = 1;
-//    writes[0].descriptorType = vk::DescriptorType::eUniformBuffer;
-//    writes[0].pBufferInfo = &bufferInfo;
-//
-//    writes[1].dstBinding = 1;
-//    writes[1].dstSet = instance->descriptorSet;
-//    writes[1].descriptorCount = 1;
-//    writes[1].descriptorType = vk::DescriptorType::eCombinedImageSampler;
-//    writes[1].pImageInfo = &imageInfo;
-//
-//    (*_device).updateDescriptorSets(writes, 0);
-//
-//    // store the instance in this, and return a pointer to it
-//
-//    _resources.push_back(resources);
-//
-//    vmaUnmapMemory(_memoryAllocator, resources.buffer->allocation);
-//    
-//    return instance;
-//    return nullptr;
-//}
+void GLTFPBRMaterial::processUniformParameters(vk::raii::DescriptorSet& descriptorSet, MaterialResources& resources, std::shared_ptr<Material> material)
+{
+    GLTFPBRMaterial::MaterialUniformParameters uniformParameters;
+
+    if (material->properties.contains("baseColorFactor"))
+    {
+        try
+        {
+            FloatVector4Property* baseColorFactorProperty = dynamic_cast<FloatVector4Property*>(material->properties["baseColorFactor"].get());
+            uniformParameters.baseColorFactor = baseColorFactorProperty->data;
+        }
+        catch (std::bad_cast)
+        {
+            uniformParameters.baseColorFactor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+        }
+    }
+
+    resources.uniformBuffer = VulkanUniformBuffer(_device, _memoryAllocator, sizeof(GLTFPBRMaterial::MaterialUniformParameters));
+    resources.uniformBuffer.setData(&uniformParameters, sizeof(GLTFPBRMaterial::MaterialUniformParameters));
+
+    _descriptorWriter->writeBuffer(descriptorSet, resources.uniformBuffer, 0, 0, sizeof(GLTFPBRMaterial::MaterialUniformParameters), vk::DescriptorType::eUniformBuffer);
+}
+
+void GLTFPBRMaterial::processTextures(vk::raii::DescriptorSet& descriptorSet, MaterialResources& resources, std::shared_ptr<Material> material)
+{
+    if (material->properties.contains("baseColorTexture"))
+    {
+        try
+        {
+            TextureProperty* baseColorFactorProperty = dynamic_cast<TextureProperty*>(material->properties["baseColorTexture"].get());
+            processCombinedImageSampler(descriptorSet, 1, resources.baseColorImage, resources.baseColorSampler, baseColorFactorProperty);
+        }
+        catch (std::bad_cast)
+        {
+            // TODO: set some default base color texture and sampler
+        }
+    }
+}
+
+void GLTFPBRMaterial::processCombinedImageSampler(vk::raii::DescriptorSet& descriptorSet, int binding, VulkanImage& image, vk::raii::Sampler& sampler, const TextureProperty* textureProperty)
+{
+    image = VulkanImage(
+        _device, _immediateSubmit, _memoryAllocator, vk::Extent2D{ textureProperty->data->width, textureProperty->data->height },
+        vk::Format::eR8G8B8A8Srgb, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, textureProperty->data->data.get(),
+        textureProperty->data->size
+    );
+
+    // TODO: get this information from the Texture object properties instead
+    vk::SamplerCreateInfo samplerCreateInfo;
+    samplerCreateInfo.setMagFilter(vk::Filter::eLinear);
+    samplerCreateInfo.setMinFilter(vk::Filter::eLinear);
+    samplerCreateInfo.setAddressModeU(vk::SamplerAddressMode::eRepeat);
+    samplerCreateInfo.setAddressModeV(vk::SamplerAddressMode::eRepeat);
+    samplerCreateInfo.setAddressModeW(vk::SamplerAddressMode::eRepeat);
+    samplerCreateInfo.setAnisotropyEnable(vk::False);
+    samplerCreateInfo.setMaxAnisotropy(4);
+    samplerCreateInfo.setBorderColor(vk::BorderColor::eIntOpaqueBlack);
+    samplerCreateInfo.setUnnormalizedCoordinates(vk::False);
+    samplerCreateInfo.setCompareEnable(vk::False);
+    samplerCreateInfo.setCompareOp(vk::CompareOp::eAlways);
+    samplerCreateInfo.setMipmapMode(vk::SamplerMipmapMode::eLinear);
+
+    sampler = vk::raii::Sampler(*_device, samplerCreateInfo);
+
+    _descriptorWriter->writeImageAndSampler(descriptorSet, image, vk::ImageLayout::eShaderReadOnlyOptimal, sampler, binding);
+}
