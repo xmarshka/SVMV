@@ -11,7 +11,7 @@ namespace SVMV
 
         enum class KeyCode : int
         {
-            W, A, S, D
+            W, A, S, D, LEFT_CONTROL, LEFT_SHIFT
         };
 
         enum class KeyState : int
@@ -21,6 +21,8 @@ namespace SVMV
 
         struct MouseDelta
         {
+            MouseDelta(float x, float y) : x(x), y(y) {}
+
             float x{ 0.0f };
             float y{ 0.0f };
         };

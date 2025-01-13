@@ -37,6 +37,7 @@ namespace SVMV
         void registerController(Controller* controller);
 
         void glfwKeyCallback(int key, int scancode, int action, int mods);
+        void glfwCursorPositionCallback(double xpos, double ypos);
 
     private:
         std::queue<std::shared_ptr<Input::Event>> _eventQueue;
@@ -44,6 +45,9 @@ namespace SVMV
         std::vector<Controller*> _controllers;
 
         std::unordered_map<int, bool> _keyHeldMap;
-        Input::MouseDelta _mouseDelta;
+
+        Input::MouseDelta _previousMouseDelta{ 0.0f, 0.0f };
+        Input::MouseDelta _mouseDelta{ 0.0f, 0.0f };
+        bool mouseMoved{ false };
     };
 }

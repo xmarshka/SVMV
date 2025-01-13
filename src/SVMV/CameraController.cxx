@@ -2,8 +2,8 @@
 
 using namespace SVMV;
 
-CameraControllerNoclip::CameraControllerNoclip(bool active, glm::vec3 position, float pitch, float yaw)
-    : _active(active), _position(position), _pitch(pitch), _yaw(yaw)
+CameraControllerNoclip::CameraControllerNoclip(bool active, float speed, float sensitivity, glm::vec3 position, float pitch, float yaw)
+    : _active(active), _speed(speed), _sensitivity(sensitivity), _position(position), _pitch(pitch), _yaw(yaw)
 {}
 
 CameraControllerNoclip::CameraControllerNoclip(CameraControllerNoclip&& other) noexcept
@@ -37,20 +37,109 @@ CameraControllerNoclip& CameraControllerNoclip::operator=(CameraControllerNoclip
     return *this;
 }
 
+void CameraControllerNoclip::Process(float deltaTime)
+{
+    if (_active)
+    {
+        if (_toMove != glm::vec3(0.0f, 0.0f, 0.0f))
+        {
+            _position += glm::normalize(_toMove) * _speed * deltaTime;
+        }
+
+        _pitch += _toPitch * _sensitivity;
+        _yaw += _toYaw * _sensitivity;
+
+        _pitch = std::min(std::max(_pitch, -85.0f), 85.0f);
+
+        _front.x = std::cos(glm::radians(_yaw)) * std::cos(glm::radians(_pitch));
+        _front.y = std::sin(glm::radians(_pitch));
+        _front.z = std::sin(glm::radians(_yaw)) * std::cos(glm::radians(_pitch));
+
+        _front = glm::normalize(_front);
+
+        _toMove = glm::vec3(0.0f, 0.0f, 0.0f);
+        _toPitch = 0.0f;
+        _toYaw = 0.0f;
+    }
+}
+
 void CameraControllerNoclip::InputEvent(std::shared_ptr<Input::Event> inputEvent)
 {
-    if (inputEvent->getType() == Input::EventType::KEY)
+    if (_active)
     {
-        if (reinterpret_cast<Input::KeyEvent*>(inputEvent.get())->keyCode == Input::KeyCode::W)
+        if (inputEvent->getType() == Input::EventType::KEY)
         {
-            if (reinterpret_cast<Input::KeyEvent*>(inputEvent.get())->keyState == Input::KeyState::PRESSED)
+            Input::KeyEvent* keyEvent = reinterpret_cast<Input::KeyEvent*>(inputEvent.get());
+
+            if (keyEvent->keyCode == Input::KeyCode::W)
             {
-                std::cout << "W PRESSED\n";
+                if (keyEvent->keyState == Input::KeyState::HELD)
+                {
+                    _toMove += _front;
+                }
             }
-            if (reinterpret_cast<Input::KeyEvent*>(inputEvent.get())->keyState == Input::KeyState::RELEASED)
+            if (keyEvent->keyCode == Input::KeyCode::A)
             {
-                std::cout << "W RELEASED\n";
+                if (keyEvent->keyState == Input::KeyState::HELD)
+                {
+                    _toMove -= glm::normalize(glm::cross(_front, _up));
+                }
+            }
+            if (keyEvent->keyCode == Input::KeyCode::S)
+            {
+                if (keyEvent->keyState == Input::KeyState::HELD)
+                {
+                    _toMove -= _front;
+                }
+            }
+            if (keyEvent->keyCode == Input::KeyCode::D)
+            {
+                if (keyEvent->keyState == Input::KeyState::HELD)
+                {
+                    _toMove += glm::normalize(glm::cross(_front, _up));
+                }
+            }
+            if (keyEvent->keyCode == Input::KeyCode::LEFT_SHIFT)
+            {
+                if (keyEvent->keyState == Input::KeyState::HELD)
+                {
+                    _toMove += _up;
+                }
+            }
+            if (keyEvent->keyCode == Input::KeyCode::LEFT_CONTROL)
+            {
+                if (keyEvent->keyState == Input::KeyState::HELD)
+                {
+                    _toMove -= _up;
+                }
             }
         }
+        else if (inputEvent->getType() == Input::EventType::MOUSE_MOVEMENT)
+        {
+            Input::MouseMovementEvent* mouseMovementEvent = reinterpret_cast<Input::MouseMovementEvent*>(inputEvent.get());
+
+            _toYaw += mouseMovementEvent->mouseDelta.x;
+            _toPitch -= mouseMovementEvent->mouseDelta.y;
+        }
     }
+}
+
+void CameraControllerNoclip::setCameraSpeed(float speed)
+{
+    _speed = speed;
+}
+
+glm::vec3 CameraControllerNoclip::getCameraPosition()
+{
+    return _position;
+}
+
+glm::vec3 CameraControllerNoclip::getCameraFront()
+{
+    return _front;
+}
+
+glm::vec3 CameraControllerNoclip::getCameraUp()
+{
+    return _up;
 }

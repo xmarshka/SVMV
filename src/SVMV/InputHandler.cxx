@@ -8,6 +8,8 @@ InputHandler::InputHandler()
     _keyHeldMap[static_cast<int>(Input::KeyCode::A)] = false;
     _keyHeldMap[static_cast<int>(Input::KeyCode::S)] = false;
     _keyHeldMap[static_cast<int>(Input::KeyCode::D)] = false;
+    _keyHeldMap[static_cast<int>(Input::KeyCode::LEFT_SHIFT)] = false;
+    _keyHeldMap[static_cast<int>(Input::KeyCode::LEFT_CONTROL)] = false;
 }
 
 InputHandler::InputHandler(InputHandler&& other) noexcept
@@ -16,7 +18,7 @@ InputHandler::InputHandler(InputHandler&& other) noexcept
     this->_keyHeldMap = std::move(other._keyHeldMap);
     this->_mouseDelta = other._mouseDelta;
 
-    other._mouseDelta = Input::MouseDelta();
+    other._mouseDelta = Input::MouseDelta(0.0f, 0.0f);
 }
 
 InputHandler& InputHandler::operator=(InputHandler&& other) noexcept
@@ -27,7 +29,7 @@ InputHandler& InputHandler::operator=(InputHandler&& other) noexcept
         this->_keyHeldMap = std::move(other._keyHeldMap);
         this->_mouseDelta = other._mouseDelta;
 
-        other._mouseDelta = Input::MouseDelta();
+        other._mouseDelta = Input::MouseDelta(0.0f, 0.0f);
     }
 
     return *this;
@@ -126,7 +128,47 @@ void InputHandler::glfwKeyCallback(int key, int scancode, int action, int mods)
             break;
         }
         break;
+    case GLFW_KEY_LEFT_SHIFT:
+        switch (action)
+        {
+        case GLFW_PRESS:
+            _eventQueue.push(std::make_shared<Input::KeyEvent>(Input::KeyCode::LEFT_SHIFT, Input::KeyState::PRESSED));
+            _keyHeldMap[static_cast<int>(Input::KeyCode::LEFT_SHIFT)] = true;
+            break;
+        case GLFW_RELEASE:
+            _eventQueue.push(std::make_shared<Input::KeyEvent>(Input::KeyCode::LEFT_SHIFT, Input::KeyState::RELEASED));
+            _keyHeldMap[static_cast<int>(Input::KeyCode::LEFT_SHIFT)] = false;
+            break;
+        default:
+            break;
+        }
+        break;
+    case GLFW_KEY_LEFT_CONTROL:
+        switch (action)
+        {
+        case GLFW_PRESS:
+            _eventQueue.push(std::make_shared<Input::KeyEvent>(Input::KeyCode::LEFT_CONTROL, Input::KeyState::PRESSED));
+            _keyHeldMap[static_cast<int>(Input::KeyCode::LEFT_CONTROL)] = true;
+            break;
+        case GLFW_RELEASE:
+            _eventQueue.push(std::make_shared<Input::KeyEvent>(Input::KeyCode::LEFT_CONTROL, Input::KeyState::RELEASED));
+            _keyHeldMap[static_cast<int>(Input::KeyCode::LEFT_CONTROL)] = false;
+            break;
+        default:
+            break;
+        }
+        break;
     default:
         break;
     }
+}
+
+void InputHandler::glfwCursorPositionCallback(double xpos, double ypos)
+{
+    Input::MouseDelta mouseDelta(xpos - _previousMouseDelta.x, ypos - _previousMouseDelta.y);
+
+    _eventQueue.push(std::make_shared<Input::MouseMovementEvent>(mouseDelta));
+
+    _previousMouseDelta.x = xpos;
+    _previousMouseDelta.y = ypos;
 }
