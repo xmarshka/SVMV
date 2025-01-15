@@ -308,7 +308,7 @@ vk::raii::Pipeline VulkanUtilities::createPipeline(const vk::raii::Device& devic
     rasterizationStateInfo.setRasterizerDiscardEnable(vk::False);
     rasterizationStateInfo.setPolygonMode(vk::PolygonMode::eFill);
     rasterizationStateInfo.setLineWidth(1.0f);
-    rasterizationStateInfo.setCullMode(vk::CullModeFlagBits::eBack);
+    rasterizationStateInfo.setCullMode(vk::CullModeFlagBits::eNone);
     rasterizationStateInfo.setFrontFace(vk::FrontFace::eCounterClockwise);
     rasterizationStateInfo.setDepthBiasEnable(vk::False);
 
@@ -324,6 +324,11 @@ vk::raii::Pipeline VulkanUtilities::createPipeline(const vk::raii::Device& devic
     colorBlendStateInfo.setLogicOpEnable(vk::False);
     colorBlendStateInfo.setAttachments(colorBlendAttachmentState);
 
+    vk::PipelineDepthStencilStateCreateInfo depthStencilStateInfo;
+    depthStencilStateInfo.setDepthTestEnable(vk::True);
+    depthStencilStateInfo.setDepthWriteEnable(vk::True);
+    depthStencilStateInfo.setDepthCompareOp(vk::CompareOp::eLess);
+
     vk::GraphicsPipelineCreateInfo pipelineInfo;
     pipelineInfo.setStages(shaderStages);
     pipelineInfo.setPVertexInputState(&vertexInputStateInfo);
@@ -332,6 +337,7 @@ vk::raii::Pipeline VulkanUtilities::createPipeline(const vk::raii::Device& devic
     pipelineInfo.setPRasterizationState(&rasterizationStateInfo);
     pipelineInfo.setPMultisampleState(&multisamplingInfo);
     pipelineInfo.setPColorBlendState(&colorBlendStateInfo);
+    pipelineInfo.setPDepthStencilState(&depthStencilStateInfo);
     pipelineInfo.setPDynamicState(&dynamicStateInfo);
     pipelineInfo.setLayout(pipelineLayout);
     pipelineInfo.setRenderPass(renderPass);

@@ -15,6 +15,10 @@ namespace SVMV
             vk::raii::Device* device, VulkanUtilities::ImmediateSubmit* immediateSubmit, VmaAllocator vmaAllocator,
             vk::Extent2D extent, vk::Format format, vk::ImageUsageFlags imageUsageFlags, void* data, size_t dataSize
         );
+        VulkanImage(
+            vk::raii::Device* device, VulkanUtilities::ImmediateSubmit* immediateSubmit, VmaAllocator vmaAllocator,
+            vk::Extent2D extent, vk::Format format, vk::ImageAspectFlags imageAspectFlags, vk::ImageUsageFlags imageUsageFlags
+        );
 
         VulkanImage(const VulkanImage&) = delete;
         VulkanImage& operator=(const VulkanImage&) = delete;

@@ -47,6 +47,49 @@ VulkanImage::VulkanImage(
     fillImage(data, dataSize);
 }
 
+VulkanImage::VulkanImage(
+    vk::raii::Device* device, VulkanUtilities::ImmediateSubmit* immediateSubmit, VmaAllocator vmaAllocator,
+    vk::Extent2D extent, vk::Format format, vk::ImageAspectFlags imageAspectFlags, vk::ImageUsageFlags imageUsageFlags
+)
+    : _device(device), _immediateSubmit(immediateSubmit), _allocator(vmaAllocator), _extent(extent, 1), _format(format)
+{
+    vk::ImageCreateInfo imageCreateInfo;
+    imageCreateInfo.setImageType(vk::ImageType::e2D);
+    imageCreateInfo.setFormat(_format);
+    imageCreateInfo.setExtent(_extent);
+    imageCreateInfo.setMipLevels(1);
+    imageCreateInfo.setArrayLayers(1);
+    imageCreateInfo.setTiling(vk::ImageTiling::eOptimal);
+    imageCreateInfo.setInitialLayout(vk::ImageLayout::eUndefined);
+    imageCreateInfo.setSamples(vk::SampleCountFlagBits::e1);
+    imageCreateInfo.setUsage(imageUsageFlags);
+    imageCreateInfo.setSharingMode(vk::SharingMode::eExclusive);
+
+    VmaAllocationCreateInfo vmaAllocationInfo = {};
+    vmaAllocationInfo.usage = VMA_MEMORY_USAGE_AUTO;
+    vmaAllocationInfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    VkImage temporaryImage;
+    VkImageCreateInfo temporaryImageCreateInfo = imageCreateInfo;
+
+    VkResult result = vmaCreateImage(_allocator, &temporaryImageCreateInfo, &vmaAllocationInfo, &temporaryImage, &_allocation, nullptr);
+
+    if (result != VK_SUCCESS)
+    {
+        throw std::runtime_error("vma: failed to create image");
+    }
+
+    _image = vk::raii::Image(*_device, temporaryImage);
+
+    vk::ImageViewCreateInfo imageViewCreateInfo;
+    imageViewCreateInfo.setViewType(vk::ImageViewType::e2D);
+    imageViewCreateInfo.setImage(_image);
+    imageViewCreateInfo.setFormat(_format);
+    imageViewCreateInfo.setSubresourceRange(vk::ImageSubresourceRange{ imageAspectFlags, 0, 1, 0, 1 });
+
+    _imageView = vk::raii::ImageView(*_device, imageViewCreateInfo);
+}
+
 VulkanImage::VulkanImage(VulkanImage&& other) noexcept
 {
     this->_image = std::move(other._image);

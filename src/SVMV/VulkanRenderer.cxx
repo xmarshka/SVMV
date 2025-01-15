@@ -26,18 +26,19 @@ VulkanRenderer::VulkanRenderer(int width, int height, const std::string& name, u
     _presentQueue = std::move(presentQueuePair.first);
     _presentQueueIndex = presentQueuePair.second;
 
-    createRenderPass();
-
-    _imageViews = _initilization.createSwapchainImageViews(_device);
-    _framebuffers = _initilization.createFramebuffers(_device, _renderPass, _imageViews);
-    _imageReadySemaphores = _initilization.createSemaphores(_device, _framesInFlight);
-    _renderCompleteSemaphores = _initilization.createSemaphores(_device, _framesInFlight);
-    _inFlightFences = _initilization.createFences(_device, _framesInFlight);
-
     _descriptorAllocator = VulkanUtilities::DescriptorAllocator(&_device);
     _descriptorWriter = VulkanDescriptorWriter(&_device);
     _vmaAllocator = VulkanUtilities::VmaAllocatorWrapper(_instance, _physicalDevice, _device);
     _immediateSubmit = VulkanUtilities::ImmediateSubmit(&_device, &_graphicsQueue, _graphicsQueueIndex);
+
+    createDepthBuffer();
+    createRenderPass();
+
+    _imageViews = _initilization.createSwapchainImageViews(_device);
+    _framebuffers = _initilization.createFramebuffers(_device, _renderPass, _imageViews, _depthBuffer.getImageView());
+    _imageReadySemaphores = _initilization.createSemaphores(_device, _framesInFlight);
+    _renderCompleteSemaphores = _initilization.createSemaphores(_device, _framesInFlight);
+    _inFlightFences = _initilization.createFences(_device, _framesInFlight);
 
     vk::CommandBufferAllocateInfo commandBufferAllocateInfo;
     commandBufferAllocateInfo.setLevel(vk::CommandBufferLevel::ePrimary);
@@ -171,8 +172,8 @@ void VulkanRenderer::recordDrawCommands(int activeFrame, const vk::raii::Framebu
     renderPassBeginInfo.setRenderPass(_renderPass);
     renderPassBeginInfo.setFramebuffer(framebuffer);
     renderPassBeginInfo.setRenderArea(vk::Rect2D(vk::Offset2D(0, 0), _swapchainExtent));
-    vk::ClearValue clearValue(vk::ClearColorValue(0.2f, 0.2f, 0.2f, 1.0f));
-    renderPassBeginInfo.setClearValues(clearValue);
+    vk::ClearValue clearValues[2] = { vk::ClearColorValue(0.2f, 0.2f, 0.2f, 1.0f), vk::ClearDepthStencilValue(1.0f, 0.0f) };
+    renderPassBeginInfo.setClearValues(clearValues);
 
     _drawCommandBuffers[activeFrame].beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
 
@@ -379,26 +380,43 @@ void VulkanRenderer::recreateSwapchain()
 
 void VulkanRenderer::createRenderPass()
 {
-    vk::AttachmentDescription attachmentDescription;
-    attachmentDescription.setFormat(_swapchainFormat);
-    attachmentDescription.setSamples(vk::SampleCountFlagBits::e1);
-    attachmentDescription.setLoadOp(vk::AttachmentLoadOp::eClear);
-    attachmentDescription.setStoreOp(vk::AttachmentStoreOp::eStore);
-    attachmentDescription.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare);
-    attachmentDescription.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare);
-    attachmentDescription.setInitialLayout(vk::ImageLayout::eUndefined);
-    attachmentDescription.setFinalLayout(vk::ImageLayout::ePresentSrcKHR);
+    vk::AttachmentDescription colorAttachmentDescription;
+    colorAttachmentDescription.setFormat(_swapchainFormat);
+    colorAttachmentDescription.setSamples(vk::SampleCountFlagBits::e1);
+    colorAttachmentDescription.setLoadOp(vk::AttachmentLoadOp::eClear);
+    colorAttachmentDescription.setStoreOp(vk::AttachmentStoreOp::eStore);
+    colorAttachmentDescription.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare);
+    colorAttachmentDescription.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare);
+    colorAttachmentDescription.setInitialLayout(vk::ImageLayout::eUndefined);
+    colorAttachmentDescription.setFinalLayout(vk::ImageLayout::ePresentSrcKHR);
 
-    vk::AttachmentReference attachmentReference;
-    attachmentReference.setAttachment(0);
-    attachmentReference.setLayout(vk::ImageLayout::eColorAttachmentOptimal);
+    vk::AttachmentDescription depthAttachmentDescription;
+    depthAttachmentDescription.setFormat(vk::Format::eD32Sfloat);
+    depthAttachmentDescription.setSamples(vk::SampleCountFlagBits::e1);
+    depthAttachmentDescription.setLoadOp(vk::AttachmentLoadOp::eClear);
+    depthAttachmentDescription.setStoreOp(vk::AttachmentStoreOp::eDontCare);
+    depthAttachmentDescription.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare);
+    depthAttachmentDescription.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare);
+    depthAttachmentDescription.setInitialLayout(vk::ImageLayout::eUndefined);
+    depthAttachmentDescription.setFinalLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal);
+
+    vk::AttachmentReference colorAttachmentReference;
+    colorAttachmentReference.setAttachment(0);
+    colorAttachmentReference.setLayout(vk::ImageLayout::eColorAttachmentOptimal);
+
+    vk::AttachmentReference depthAttachmentReference;
+    depthAttachmentReference.setAttachment(1);
+    depthAttachmentReference.setLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal);
 
     vk::SubpassDescription subpassDescription;
     subpassDescription.setPipelineBindPoint(vk::PipelineBindPoint::eGraphics);
-    subpassDescription.setColorAttachments(attachmentReference);
+    subpassDescription.setColorAttachments(colorAttachmentReference);
+    subpassDescription.setPDepthStencilAttachment(&depthAttachmentReference);
+
+    vk::AttachmentDescription attachments[2] = { colorAttachmentDescription, depthAttachmentDescription };
 
     vk::RenderPassCreateInfo renderPassCreateInfo;
-    renderPassCreateInfo.setAttachments(attachmentDescription);
+    renderPassCreateInfo.setAttachments(attachments);
     renderPassCreateInfo.setSubpasses(subpassDescription);
 
     _renderPass = vk::raii::RenderPass(_device, renderPassCreateInfo);
@@ -422,4 +440,9 @@ void VulkanRenderer::createGlobalDescriptorSets()
         _globalDescriptorSetBuffers.push_back(VulkanUniformBuffer(&_device, _vmaAllocator.getAllocator(), sizeof(ShaderStructures::GlobalUniformBuffer)));
         _globalDescriptorSets.push_back(std::move(_descriptorAllocator.allocateSet(_globalDescriptorSetLayout)));
     }
+}
+
+void VulkanRenderer::createDepthBuffer()
+{
+    _depthBuffer = VulkanImage(&_device, &_immediateSubmit, _vmaAllocator.getAllocator(), _swapchainExtent, vk::Format::eD32Sfloat, vk::ImageAspectFlagBits::eDepth, vk::ImageUsageFlagBits::eDepthStencilAttachment);
 }

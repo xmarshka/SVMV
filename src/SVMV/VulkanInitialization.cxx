@@ -138,6 +138,29 @@ std::vector<vk::raii::Framebuffer> VulkanInitilization::createFramebuffers(const
     return framebuffers;
 }
 
+std::vector<vk::raii::Framebuffer> VulkanInitilization::createFramebuffers(const vk::raii::Device& device, const vk::raii::RenderPass& renderPass, const std::vector<vk::raii::ImageView>& imageViews, const vk::raii::ImageView& depthImageView)
+{
+    std::vector<vk::raii::Framebuffer> framebuffers;
+
+    std::array<vk::ImageView, 2> attachments = { nullptr, *depthImageView };
+
+    for (int i = 0; i < imageViews.size(); i++)
+    {
+        attachments[0] = *(imageViews[i]);
+
+        vk::FramebufferCreateInfo info;
+        info.setRenderPass(renderPass);
+        info.setAttachments(attachments);
+        info.setWidth(_bootstrapSwapchain.extent.width);
+        info.setHeight(_bootstrapSwapchain.extent.height);
+        info.setLayers(1);
+
+        framebuffers.push_back(vk::raii::Framebuffer(device, info));
+    }
+
+    return framebuffers;
+}
+
 std::vector<vk::raii::Semaphore> VulkanInitilization::createSemaphores(const vk::raii::Device& device, int count)
 {
     std::vector<vk::raii::Semaphore> semaphores;

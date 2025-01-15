@@ -67,6 +67,7 @@ namespace SVMV
         void recreateSwapchain();
         void createRenderPass();
         void createGlobalDescriptorSets();
+        void createDepthBuffer();
 
     private:
         shaderc::Compiler _shaderCompiler;
@@ -98,17 +99,19 @@ namespace SVMV
 
         vk::raii::CommandBuffers _drawCommandBuffers{ nullptr };
 
-        std::vector<vk::raii::ImageView> _imageViews;
-        std::vector<vk::raii::Framebuffer> _framebuffers;
-
-        std::vector<vk::raii::Semaphore> _imageReadySemaphores;
-        std::vector<vk::raii::Semaphore> _renderCompleteSemaphores;
-        std::vector<vk::raii::Fence> _inFlightFences;
-
         VulkanUtilities::DescriptorAllocator _descriptorAllocator;
         VulkanDescriptorWriter _descriptorWriter;
         VulkanUtilities::VmaAllocatorWrapper _vmaAllocator;
         VulkanUtilities::ImmediateSubmit _immediateSubmit;
+
+        std::vector<vk::raii::ImageView> _imageViews;
+        std::vector<vk::raii::Framebuffer> _framebuffers;
+        
+        VulkanImage _depthBuffer;
+
+        std::vector<vk::raii::Semaphore> _imageReadySemaphores;
+        std::vector<vk::raii::Semaphore> _renderCompleteSemaphores;
+        std::vector<vk::raii::Fence> _inFlightFences;
 
         vk::raii::DescriptorSetLayout _globalDescriptorSetLayout    { nullptr };
         std::vector<VulkanUniformBuffer> _globalDescriptorSetBuffers;

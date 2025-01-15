@@ -4,6 +4,7 @@
 #include <VkBootstrap.h>
 
 #include <vector>
+#include <array>
 #include <utility>
 
 namespace SVMV
@@ -31,6 +32,7 @@ namespace SVMV
         std::pair<vk::raii::Queue, unsigned> createQueue(const vk::raii::Device& device, vkb::QueueType queueType);
         std::vector<vk::raii::ImageView> createSwapchainImageViews(const vk::raii::Device& device);
         std::vector<vk::raii::Framebuffer> createFramebuffers(const vk::raii::Device& device, const vk::raii::RenderPass& renderPass, const std::vector<vk::raii::ImageView>& imageViews);
+        std::vector<vk::raii::Framebuffer> createFramebuffers(const vk::raii::Device& device, const vk::raii::RenderPass& renderPass, const std::vector<vk::raii::ImageView>& imageViews, const vk::raii::ImageView& depthImageView);
         std::vector<vk::raii::Semaphore> createSemaphores(const vk::raii::Device& device, int count);
         std::vector<vk::raii::Fence> createFences(const vk::raii::Device& device, int count);
 
