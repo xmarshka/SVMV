@@ -1,6 +1,8 @@
 #pragma once
 
 #include <tiny_gltf.h>
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/quaternion.hpp>
@@ -31,17 +33,25 @@ namespace SVMV
 
         namespace details
         {
-            void processScene();
-            void processNodeHierarchy(std::shared_ptr<Node> parentNode, const std::vector<int>& children);
-            std::shared_ptr<Node> processNode(std::shared_ptr<Node> parentNode, const tinygltf::Node& gltfNode);
+            std::shared_ptr<Scene> processScene(std::shared_ptr<tinygltf::Model> gltfScene);
 
-            void processMesh(std::shared_ptr<Node> node, const tinygltf::Mesh& gltfMesh);
-            void processPrimitive(std::shared_ptr<Node> node, const tinygltf::Primitive& gltfPrimitive);
+            std::vector<std::shared_ptr<Material>> processMaterials(std::shared_ptr<tinygltf::Model> gltfScene);
 
-            void processMaterial(std::shared_ptr<Primitive> primitive, const tinygltf::Material& gltfMaterial);
+            std::vector<std::shared_ptr<Texture>> processTextures(std::shared_ptr<tinygltf::Model> gltfScene);
+
+            void processAndInsertFloatProperty(std::shared_ptr<Material> targetMaterial, const std::string& name, float gltfFloat);
+            void processAndInsertFloatVector4Property(std::shared_ptr<Material> targetMaterial, const std::string& name, const std::vector<double>& gltfFactor);
+            void processAndInsertTextureProperty(const std::vector<std::shared_ptr<Texture>>& textures, std::shared_ptr<Material> targetMaterial, const std::string& name, const tinygltf::TextureInfo& gltfTextureInfo);
+            void processAndInsertTextureProperty(const std::vector<std::shared_ptr<Texture>>& textures, std::shared_ptr<Material> targetMaterial, const std::string& name, const tinygltf::NormalTextureInfo& gltfTextureInfo);
+            void processAndInsertTextureProperty(const std::vector<std::shared_ptr<Texture>>& textures, std::shared_ptr<Material> targetMaterial, const std::string& name, const tinygltf::OcclusionTextureInfo& gltfTextureInfo);
+
+            std::vector<std::shared_ptr<Mesh>> processMeshes(std::shared_ptr<tinygltf::Model> gltfScene, const std::vector<std::shared_ptr<Material>>& materials);
+            std::vector<std::shared_ptr<Primitive>> processPrimitives(std::shared_ptr<tinygltf::Model> gltfScene, const tinygltf::Mesh& gltfMesh, const std::vector<std::shared_ptr<Material>>& materials);
+
+            std::shared_ptr<Node> processNodeHierarchy(std::shared_ptr<tinygltf::Model> gltfScene, const tinygltf::Node& gltfNode, const std::vector<std::shared_ptr<Mesh>>& meshes);
+            std::shared_ptr<Node> processNode(const tinygltf::Node& gltfNode, const std::vector<std::shared_ptr<Mesh>>& meshes);
+
             std::shared_ptr<Material> createDefaultMaterial();
-
-            void processTexture(std::shared_ptr<Texture> texture, const tinygltf::TextureInfo& gltfTextureInfo);
 
             void copyAccessorToDestination(std::byte* source, std::byte* destination, size_t count, size_t componentCount, size_t componentSize, size_t byteStride);
             void copyMismatchedAccessorToDestination(std::byte* source, std::byte* destination, size_t count, size_t sourceComponentCount, size_t destinationComponentCount, void* fillerValue, size_t componentSize, size_t byteStride);

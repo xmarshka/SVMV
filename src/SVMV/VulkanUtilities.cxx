@@ -53,7 +53,7 @@ VulkanUtilities::ImmediateSubmit& VulkanUtilities::ImmediateSubmit::operator=(Im
 
 void VulkanUtilities::ImmediateSubmit::submit(std::function<void(const vk::raii::CommandBuffer& commandBuffer)>&& lambda)
 {
-    vk::Result waitForFencesResult = _device->waitForFences(*(_fence), true, INT16_MAX);
+    vk::Result waitForFencesResult = _device->waitForFences(*(_fence), true, INT32_MAX);
 
     if (waitForFencesResult != vk::Result::eSuccess)
     {

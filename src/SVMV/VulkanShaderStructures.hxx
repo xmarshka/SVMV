@@ -1,6 +1,8 @@
 #pragma once
 
 #include <vulkan/vulkan.hpp>
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 
 namespace SVMV
@@ -19,11 +21,15 @@ namespace SVMV
 
         struct GlobalUniformBuffer
         {
-            glm::mat4 View             { 1.0f };
-            glm::mat4 ViewProjection   { 1.0f };
+            glm::mat4 View              { 1.0f };
+            glm::mat4 ViewProjection    { 1.0f };
+            glm::vec4 CameraPosition    { 0.0f };
 
             // padding to align to 256 bytes
-            glm::mat4 padding;
+            glm::vec4 padding1;
+            glm::vec4 padding2;
+            glm::vec4 padding3;
+            glm::mat4 padding4;
         };
     }
 }

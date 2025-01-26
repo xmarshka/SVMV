@@ -57,6 +57,8 @@ void CameraControllerNoclip::Process(float deltaTime)
 
         _front = glm::normalize(_front);
 
+        _front = glm::normalize(glm::vec3(0.0f, 0.0f, 0.0f) - _position);
+
         _toMove = glm::vec3(0.0f, 0.0f, 0.0f);
         _toPitch = 0.0f;
         _toYaw = 0.0f;

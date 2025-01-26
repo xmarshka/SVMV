@@ -88,6 +88,7 @@ void VulkanRenderer::draw()
     ShaderStructures::GlobalUniformBuffer globalUniformBuffer;
     globalUniformBuffer.View = _viewMatrix;
     globalUniformBuffer.ViewProjection = _projectionMatrix * _viewMatrix;
+    globalUniformBuffer.CameraPosition = glm::vec4(_cameraPosition.x, _cameraPosition.y, _cameraPosition.z, 0.0f);
 
     _globalDescriptorSetBuffers[_activeFrame].setData(&globalUniformBuffer, sizeof(ShaderStructures::GlobalUniformBuffer));
 
@@ -141,8 +142,11 @@ void VulkanRenderer::loadScene(std::shared_ptr<Scene> scene)
 void VulkanRenderer::setCamera(glm::vec3 position, glm::vec3 lookDirection, glm::vec3 upDirection, float fieldOfView)
 {
     _projectionMatrix = glm::perspective(glm::radians(fieldOfView), (float)_swapchainExtent.width / (float)_swapchainExtent.height, 0.1f, 100.0f);
+    _projectionMatrix[1][1] *= -1;
 
     _viewMatrix = glm::lookAt(position, position + lookDirection, upDirection);
+
+    _cameraPosition = position;
 }
 
 void VulkanRenderer::resize(int width, int height)
@@ -172,7 +176,7 @@ void VulkanRenderer::recordDrawCommands(int activeFrame, const vk::raii::Framebu
     renderPassBeginInfo.setRenderPass(_renderPass);
     renderPassBeginInfo.setFramebuffer(framebuffer);
     renderPassBeginInfo.setRenderArea(vk::Rect2D(vk::Offset2D(0, 0), _swapchainExtent));
-    vk::ClearValue clearValues[2] = { vk::ClearColorValue(0.2f, 0.2f, 0.2f, 1.0f), vk::ClearDepthStencilValue(1.0f, 0.0f) };
+    vk::ClearValue clearValues[2] = { vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f), vk::ClearDepthStencilValue(1.0f, 0.0f) };
     renderPassBeginInfo.setClearValues(clearValues);
 
     _drawCommandBuffers[activeFrame].beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);

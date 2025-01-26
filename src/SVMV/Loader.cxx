@@ -2,75 +2,353 @@
 
 using namespace SVMV;
 
-namespace
-{
-    std::shared_ptr<Scene> scene;
-    std::shared_ptr<Node> rootNode;
-
-    std::unordered_map<unsigned int, std::shared_ptr<Mesh>> meshMap;
-
-    std::shared_ptr<tinygltf::Model> gltfModel;
-}
-
 std::shared_ptr<Scene> Loader::loadScene(const std::string& filePath)
 {
-    scene = std::make_shared<Scene>();
-    rootNode = scene->root = std::make_shared<Node>();
-
     tinygltf::TinyGLTF gltfContext;
 
-    gltfModel = std::make_shared<tinygltf::Model>();
+    std::shared_ptr<tinygltf::Model> gltfScene = std::make_shared<tinygltf::Model>();
     std::string error;
     std::string warning;
 
-    bool result = gltfContext.LoadASCIIFromFile(gltfModel.get(), &error, &warning, filePath);
+    bool result = gltfContext.LoadASCIIFromFile(gltfScene.get(), &error, &warning, filePath);
 
-    if (!warning.empty())
-    {
-        std::cout << "tinygltf: warning: " + warning << std::endl;
-    }
-    if (!error.empty())
-    {
-        std::cout << "tinygltf: error: " + error << std::endl;
-    }
     if (!result)
     {
-        throw std::runtime_error("tinigltf: failed to load file: " + filePath);
+        result = gltfContext.LoadBinaryFromFile(gltfScene.get(), &error, &warning, filePath);
     }
 
-    details::processScene();
+    if (!result)
+    {
+        if (!warning.empty())
+        {
+            std::cout << "tinygltf: warning: " + warning << std::endl;
+        }
+        if (!error.empty())
+        {
+            std::cout << "tinygltf: error: " + error << std::endl;
+            throw std::runtime_error("tinigltf: failed to load file: " + filePath);
+        }
+    }
 
-    rootNode.reset();
-    meshMap.clear();
-    gltfModel.reset();
+    std::shared_ptr<Scene> scene = details::processScene(gltfScene);
 
     return scene;
 }
 
-void Loader::details::processScene()
+std::shared_ptr<Scene> Loader::details::processScene(std::shared_ptr<tinygltf::Model> gltfScene)
 {
-    if (gltfModel->defaultScene != -1)
+    std::shared_ptr<Scene> scene = std::make_shared<Scene>();
+
+    scene->materials = processMaterials(gltfScene);
+    scene->meshes = processMeshes(gltfScene, scene->materials);
+    scene->root = std::make_shared<Node>();
+
+    if (gltfScene->defaultScene != -1)
     {
-        processNodeHierarchy(scene->root, gltfModel->scenes[gltfModel->defaultScene].nodes);
+        for (int nodeIndex : gltfScene->scenes[gltfScene->defaultScene].nodes)
+        {
+            scene->root->children.push_back(processNodeHierarchy(gltfScene, gltfScene->nodes[nodeIndex], scene->meshes));
+        }
     }
-    else
+    else if (gltfScene->scenes.size() > 0)
     {
-        processNodeHierarchy(scene->root, gltfModel->scenes[0].nodes);
+        for (int nodeIndex : gltfScene->scenes[0].nodes)
+        {
+            scene->root->children.push_back(processNodeHierarchy(gltfScene, gltfScene->nodes[nodeIndex], scene->meshes));
+        }
+    }
+
+    return scene;
+}
+
+std::vector<std::shared_ptr<Material>> Loader::details::processMaterials(std::shared_ptr<tinygltf::Model> gltfScene)
+{
+    std::vector<std::shared_ptr<Material>> materials;
+
+    // TODO: texture map to not duplicate images
+    // INSTEAD... load all texture to a vector as sharedptrs and then assign when processing materials
+    // WITH... a default texture at index 0 (?)
+    std::vector<std::shared_ptr<Texture>> textures = processTextures(gltfScene);
+
+    for (const auto& gltfMaterial : gltfScene->materials)
+    {
+        std::shared_ptr<Material> material = std::make_shared<Material>();
+        material->materialTypeName = "glTFPBR";
+        material->materialName = gltfMaterial.name;
+
+        processAndInsertFloatProperty(material, "metallicFactor", gltfMaterial.pbrMetallicRoughness.metallicFactor);
+        processAndInsertFloatProperty(material, "roughnessFactor", gltfMaterial.pbrMetallicRoughness.roughnessFactor);
+
+        processAndInsertFloatVector4Property(material, "baseColorFactor", gltfMaterial.pbrMetallicRoughness.baseColorFactor);
+
+        processAndInsertTextureProperty(textures, material, "baseColorTexture", gltfMaterial.pbrMetallicRoughness.baseColorTexture);
+        processAndInsertTextureProperty(textures, material, "metallicRoughnessTexture", gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture);
+
+        processAndInsertTextureProperty(textures, material, "normalTexture", gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture);
+        processAndInsertTextureProperty(textures, material, "occlusionTexture", gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture);
+        processAndInsertTextureProperty(textures, material, "emissiveTexture", gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture);
+
+        materials.push_back(material);
+    }
+
+    return materials;
+}
+
+std::vector<std::shared_ptr<Texture>> Loader::details::processTextures(std::shared_ptr<tinygltf::Model> gltfScene)
+{
+    std::vector<std::shared_ptr<Texture>> textures;
+
+    // TODO: create placeholder texture for when there is no source
+
+    for (const auto& gltfTexture : gltfScene->textures)
+    {
+        std::shared_ptr<Texture> texture = std::make_shared<Texture>();
+
+        if (gltfTexture.source != -1)
+        {
+            tinygltf::Image gltfImage = gltfScene->images[gltfTexture.source];
+
+            texture->width = gltfImage.width;
+            texture->height = gltfImage.height;
+
+            texture->data = std::make_unique<std::byte[]>(gltfImage.width * gltfImage.height * 4); // tinyglTF expands images to RGBA by default
+            texture->size = gltfImage.width * gltfImage.height * 4;
+
+            memcpy(texture->data.get(), gltfImage.image.data(), gltfImage.width * gltfImage.height * 4);
+        }
+
+        textures.push_back(texture);
+    }
+
+    return textures;
+}
+
+void Loader::details::processAndInsertFloatProperty(std::shared_ptr<Material> targetMaterial, const std::string& name, float gltfFloat)
+{
+    std::shared_ptr<FloatProperty> floatProperty = std::make_shared<FloatProperty>();
+    floatProperty->name = name;
+    floatProperty->data = gltfFloat;
+
+    targetMaterial->properties[name] = floatProperty;
+}
+
+void Loader::details::processAndInsertFloatVector4Property(std::shared_ptr<Material> targetMaterial, const std::string& name, const std::vector<double>& gltfFactor)
+{
+    std::shared_ptr<FloatVector4Property> factorProperty = std::make_shared<FloatVector4Property>();
+    factorProperty->name = name;
+
+    for (int i = 0; (i < gltfFactor.size()) && (i < 4); i++)
+    {
+        factorProperty->data[i] = gltfFactor[i];
+    }
+
+    targetMaterial->properties[name] = factorProperty;
+}
+
+void Loader::details::processAndInsertTextureProperty(const std::vector<std::shared_ptr<Texture>>& textures, std::shared_ptr<Material> targetMaterial, const std::string& name, const tinygltf::TextureInfo& gltfTextureInfo)
+{
+    if (gltfTextureInfo.index >= 0)
+    {
+        std::shared_ptr<TextureProperty> textureProperty = std::make_shared<TextureProperty>();
+        textureProperty->name = name;
+
+        textureProperty->data = textures[gltfTextureInfo.index];
+
+        targetMaterial->properties[name] = textureProperty;
     }
 }
 
-void Loader::details::processNodeHierarchy(std::shared_ptr<Node> parentNode, const std::vector<int>& children)
+void Loader::details::processAndInsertTextureProperty(const std::vector<std::shared_ptr<Texture>>& textures, std::shared_ptr<Material> targetMaterial, const std::string& name, const tinygltf::NormalTextureInfo& gltfTextureInfo)
 {
-    for (int index : children)
+    if (gltfTextureInfo.index >= 0)
     {
-        processNodeHierarchy(processNode(parentNode, gltfModel->nodes[index]), gltfModel->nodes[index].children);
+        std::shared_ptr<TextureProperty> textureProperty = std::make_shared<TextureProperty>();
+        textureProperty->name = name;
+
+        textureProperty->data = textures[gltfTextureInfo.index];
+
+        targetMaterial->properties[name] = textureProperty;
     }
 }
 
-std::shared_ptr<Node> Loader::details::processNode(std::shared_ptr<Node> parentNode, const tinygltf::Node& gltfNode)
+void Loader::details::processAndInsertTextureProperty(const std::vector<std::shared_ptr<Texture>>& textures, std::shared_ptr<Material> targetMaterial, const std::string& name, const tinygltf::OcclusionTextureInfo& gltfTextureInfo)
+{
+    if (gltfTextureInfo.index >= 0)
+    {
+        std::shared_ptr<TextureProperty> textureProperty = std::make_shared<TextureProperty>();
+        textureProperty->name = name;
+
+        textureProperty->data = textures[gltfTextureInfo.index];
+
+        targetMaterial->properties[name] = textureProperty;
+    }
+}
+
+std::vector<std::shared_ptr<Mesh>> Loader::details::processMeshes(std::shared_ptr<tinygltf::Model> gltfScene, const std::vector<std::shared_ptr<Material>>& materials)
+{
+    std::vector<std::shared_ptr<Mesh>> meshes;
+
+    for (const auto& gltfMesh : gltfScene->meshes)
+    {
+        std::shared_ptr<Mesh> mesh = std::make_shared<Mesh>();
+
+        mesh->primitives = processPrimitives(gltfScene, gltfMesh, materials);
+
+        meshes.push_back(mesh);
+    }
+
+    return meshes;
+}
+
+std::vector<std::shared_ptr<Primitive>> Loader::details::processPrimitives(std::shared_ptr<tinygltf::Model> gltfScene, const tinygltf::Mesh& gltfMesh, const std::vector<std::shared_ptr<Material>>& materials)
+{
+    std::vector<std::shared_ptr<Primitive>> primitives;
+
+    for (const auto& gltfPrimitive : gltfMesh.primitives)
+    {
+        std::shared_ptr<Primitive> primitive = std::make_shared<Primitive>();
+
+        if (gltfPrimitive.material != -1)
+        {
+            primitive->material = materials.at(gltfPrimitive.material);
+        }
+        else
+        {
+            //primitive->material = createDefaultMaterial();
+        }
+
+        if (gltfPrimitive.indices != -1)
+        {
+            tinygltf::Accessor gltfIndices = gltfScene->accessors[gltfPrimitive.indices];
+            tinygltf::BufferView gltfBufferView = gltfScene->bufferViews[gltfIndices.bufferView];
+
+            int byteStride = (gltfBufferView.byteStride == 0) ? tinygltf::GetComponentSizeInBytes(gltfIndices.componentType) : gltfBufferView.byteStride;
+
+            primitive->indices.reserve(gltfIndices.count);
+
+            switch (gltfIndices.componentType)
+            {
+            case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
+            {
+                std::byte* source = reinterpret_cast<std::byte*>(gltfScene->buffers[gltfBufferView.buffer].data.data() + gltfIndices.byteOffset + gltfBufferView.byteOffset);
+
+                for (int i = 0; i < gltfIndices.count; i++)
+                {
+                    primitive->indices.push_back(*(reinterpret_cast<uint32_t*>(source)));
+                    source += byteStride;
+                }
+            }
+            break;
+
+            case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+            {
+                std::byte* source = reinterpret_cast<std::byte*>(gltfScene->buffers[gltfBufferView.buffer].data.data() + gltfIndices.byteOffset + gltfBufferView.byteOffset);
+
+                for (int i = 0; i < gltfIndices.count; i++)
+                {
+                    primitive->indices.push_back(*(reinterpret_cast<uint16_t*>(source)));
+                    source += byteStride;
+                }
+            }
+            break;
+
+            case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
+            {
+                std::byte* source = reinterpret_cast<std::byte*>(gltfScene->buffers[gltfBufferView.buffer].data.data() + gltfIndices.byteOffset + gltfBufferView.byteOffset);
+
+                for (int i = 0; i < gltfIndices.count; i++)
+                {
+                    primitive->indices.push_back(*(reinterpret_cast<uint8_t*>(source)));
+                    source += byteStride;
+                }
+            }
+            break;
+
+            default:
+                throw std::runtime_error("loader: attempting to load primitive with invalid index type");
+                break;
+            }
+        }
+
+        std::array<const char*, 5> attributeNames{ "POSITION", "NORMAL", "TANGENT", "TEXCOORD_0", "COLOR_0" };
+
+        for (const auto& attributeName : attributeNames)
+        {
+            if (gltfPrimitive.attributes.find(attributeName) != gltfPrimitive.attributes.end())
+            {
+                tinygltf::Accessor gltfAttribute = gltfScene->accessors[gltfPrimitive.attributes.at(attributeName)]; // TODO: make sure the index here isn't -1?
+                tinygltf::BufferView gltfBufferView = gltfScene->bufferViews[gltfAttribute.bufferView];
+
+                int finalComponentCount = (attributeName == "COLOR_0") ? 4 : tinygltf::GetNumComponentsInType(gltfAttribute.type);
+                int byteStride = (gltfBufferView.byteStride == 0) ? (tinygltf::GetComponentSizeInBytes(gltfAttribute.componentType) * finalComponentCount) : gltfBufferView.byteStride;
+
+                Attribute attribute;
+                attribute.attributeType = convertAttributeName(attributeName);
+                attribute.type = Type::FLOAT;
+                attribute.size = gltfAttribute.count * finalComponentCount * tinygltf::GetComponentSizeInBytes(gltfAttribute.componentType);
+                attribute.count = gltfAttribute.count;
+                attribute.componentCount = finalComponentCount;
+
+                attribute.elements = std::make_unique_for_overwrite<std::byte[]>(gltfAttribute.count * finalComponentCount * tinygltf::GetComponentSizeInBytes(gltfAttribute.componentType));
+
+                std::unique_ptr<float[]> denormalized = nullptr;
+
+                std::byte* source = reinterpret_cast<std::byte*>(gltfScene->buffers[gltfBufferView.buffer].data.data() + gltfAttribute.byteOffset + gltfBufferView.byteOffset);
+
+                if (gltfAttribute.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
+                {
+                    denormalized = getDenormalizedByteAccessorData(reinterpret_cast<uint8_t*>(source), gltfAttribute.count, tinygltf::GetNumComponentsInType(gltfAttribute.type), gltfBufferView.byteStride);
+                    source = reinterpret_cast<std::byte*>(denormalized.get());
+                    byteStride = sizeof(float) * finalComponentCount;
+                }
+                else if (gltfAttribute.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
+                {
+                    denormalized = getDenormalizedShortAccessorData(reinterpret_cast<uint16_t*>(source), gltfAttribute.count, tinygltf::GetNumComponentsInType(gltfAttribute.type), gltfBufferView.byteStride);
+                    source = reinterpret_cast<std::byte*>(denormalized.get());
+                    byteStride = sizeof(float) * finalComponentCount;
+                }
+
+                if (finalComponentCount == tinygltf::GetNumComponentsInType(gltfAttribute.type))
+                {
+                    copyAccessorToDestination(
+                        source, attribute.elements.get(), gltfAttribute.count, tinygltf::GetNumComponentsInType(gltfAttribute.type),
+                        tinygltf::GetComponentSizeInBytes(gltfAttribute.componentType), byteStride
+                    );
+                }
+                else
+                {
+                    float fillerValue = 1.0f; // for color attributes, where the filled alpha value is 1.0f
+                    copyMismatchedAccessorToDestination(
+                        source, attribute.elements.get(), gltfAttribute.count, tinygltf::GetNumComponentsInType(gltfAttribute.type),
+                        finalComponentCount, &fillerValue, tinygltf::GetComponentSizeInBytes(gltfAttribute.componentType), byteStride
+                    );
+                }
+
+                primitive->attributes.push_back(std::move(attribute));
+            }
+        }
+
+        primitives.push_back(primitive);
+    }
+
+    return primitives;
+}
+
+std::shared_ptr<Node> Loader::details::processNodeHierarchy(std::shared_ptr<tinygltf::Model> gltfScene, const tinygltf::Node& gltfNode, const std::vector<std::shared_ptr<Mesh>>& meshes)
+{
+    std::shared_ptr<Node> node = processNode(gltfNode, meshes);
+
+    for (int index : gltfNode.children)
+    {
+        node->children.push_back(processNodeHierarchy(gltfScene, gltfScene->nodes.at(index), meshes));
+    }
+
+    return node;
+}
+
+std::shared_ptr<Node> Loader::details::processNode(const tinygltf::Node& gltfNode, const std::vector<std::shared_ptr<Mesh>>& meshes)
 {
     std::shared_ptr<Node> node = std::make_shared<Node>();
-    parentNode->children.emplace_back(node);
 
     if (gltfNode.matrix.size() != 0)
     {
@@ -98,184 +376,12 @@ std::shared_ptr<Node> Loader::details::processNode(std::shared_ptr<Node> parentN
         node->transform = translate * rotate * scale * node->transform;
     }
 
-
     if (gltfNode.mesh != -1)
     {
-        if (meshMap.find(gltfNode.mesh) != meshMap.end())
-        {
-            node->mesh = meshMap[gltfNode.mesh];
-        }
-        else
-        {
-            node->mesh = std::make_shared<Mesh>();
-            processMesh(node, gltfModel->meshes[gltfNode.mesh]);
-
-            scene->meshes.emplace_back(node->mesh);
-            meshMap[gltfNode.mesh] = node->mesh;
-        }
+        node->mesh = meshes.at(gltfNode.mesh);
     }
 
     return node;
-}
-
-void Loader::details::processMesh(std::shared_ptr<Node> node, const tinygltf::Mesh& gltfMesh)
-{
-    for (const auto& primitive : gltfMesh.primitives)
-    {
-        processPrimitive(node, primitive);
-    }
-}
-
-void Loader::details::processPrimitive(std::shared_ptr<Node> node, const tinygltf::Primitive& gltfPrimitive)
-{
-    std::shared_ptr<Primitive> primitive = std::make_shared<Primitive>();
-    node->mesh->primitives.emplace_back(primitive);
-
-    if (gltfPrimitive.material != -1)
-    {
-        processMaterial(primitive, gltfModel->materials[gltfPrimitive.material]);
-    }
-    else
-    {
-        primitive->material = createDefaultMaterial();
-    }
-
-    if (gltfPrimitive.indices != -1)
-    {
-        tinygltf::Accessor gltfIndices = gltfModel->accessors[gltfPrimitive.indices];
-        tinygltf::BufferView gltfBufferView = gltfModel->bufferViews[gltfIndices.bufferView];
-
-        int byteStride = (gltfBufferView.byteStride == 0) ? tinygltf::GetComponentSizeInBytes(gltfIndices.componentType) : gltfBufferView.byteStride;
-
-        primitive->indices.reserve(gltfIndices.count);
-
-        switch (gltfIndices.componentType)
-        {
-        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
-        {
-            std::byte* source = reinterpret_cast<std::byte*>(gltfModel->buffers[gltfBufferView.buffer].data.data() + gltfIndices.byteOffset + gltfBufferView.byteOffset);
-
-            for (int i = 0; i < gltfIndices.count; i++)
-            {
-                primitive->indices.push_back(*(reinterpret_cast<uint32_t*>(source)));
-                source += byteStride;
-            }
-        }
-            break;
-
-        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
-        {
-            std::byte* source = reinterpret_cast<std::byte*>(gltfModel->buffers[gltfBufferView.buffer].data.data() + gltfIndices.byteOffset + gltfBufferView.byteOffset);
-
-            for (int i = 0; i < gltfIndices.count; i++)
-            {
-                primitive->indices.push_back(*(reinterpret_cast<uint16_t*>(source)));
-                source += byteStride;
-            }
-        }
-            break;
-
-        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
-        {
-            std::byte* source = reinterpret_cast<std::byte*>(gltfModel->buffers[gltfBufferView.buffer].data.data() + gltfIndices.byteOffset + gltfBufferView.byteOffset);
-
-            for (int i = 0; i < gltfIndices.count; i++)
-            {
-                primitive->indices.push_back(*(reinterpret_cast<uint8_t*>(source)));
-                source += byteStride;
-            }
-        }
-            break;
-
-        default:
-            throw std::runtime_error("loader: attempting to load primitive with invalid index type");
-            return;
-        }
-    }
-
-    std::array<const char*, 5> attributeNames { "POSITION", "NORMAL", "TANGENT", "TEXCOORD_0", "COLOR_0" };
-
-    for (const auto& attributeName : attributeNames)
-    {
-        if (gltfPrimitive.attributes.find(attributeName) != gltfPrimitive.attributes.end())
-        {
-            tinygltf::Accessor gltfAttribute = gltfModel->accessors[gltfPrimitive.attributes.at(attributeName)]; // TODO: make sure the index here isn't -1?
-            tinygltf::BufferView gltfBufferView = gltfModel->bufferViews[gltfAttribute.bufferView];
-
-            int finalComponentCount = (attributeName == "COLOR_0") ? 4 : tinygltf::GetNumComponentsInType(gltfAttribute.type);
-            int byteStride = (gltfBufferView.byteStride == 0) ? (tinygltf::GetComponentSizeInBytes(gltfAttribute.componentType) * finalComponentCount) : gltfBufferView.byteStride;
-
-            Attribute attribute;
-            attribute.attributeType = convertAttributeName(attributeName);
-            attribute.type = Type::FLOAT;
-            attribute.size = gltfAttribute.count * finalComponentCount * tinygltf::GetComponentSizeInBytes(gltfAttribute.componentType);
-            attribute.count = gltfAttribute.count;
-            attribute.componentCount = finalComponentCount;
-
-            attribute.elements = std::make_unique_for_overwrite<std::byte[]>(gltfAttribute.count * finalComponentCount * tinygltf::GetComponentSizeInBytes(gltfAttribute.componentType));
-
-            std::unique_ptr<float[]> denormalized = nullptr;
-
-            std::byte* source = reinterpret_cast<std::byte*>(gltfModel->buffers[gltfBufferView.buffer].data.data() + gltfAttribute.byteOffset + gltfBufferView.byteOffset);
-
-            if (gltfAttribute.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
-            {
-                denormalized = getDenormalizedByteAccessorData(reinterpret_cast<uint8_t*>(source), gltfAttribute.count, tinygltf::GetNumComponentsInType(gltfAttribute.type), gltfBufferView.byteStride);
-                source = reinterpret_cast<std::byte*>(denormalized.get());
-                byteStride = sizeof(float) * finalComponentCount;
-            }
-            else if (gltfAttribute.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
-            {
-                denormalized = getDenormalizedShortAccessorData(reinterpret_cast<uint16_t*>(source), gltfAttribute.count, tinygltf::GetNumComponentsInType(gltfAttribute.type), gltfBufferView.byteStride);
-                source = reinterpret_cast<std::byte*>(denormalized.get());
-                byteStride = sizeof(float) * finalComponentCount;
-            }
-
-            if (finalComponentCount == tinygltf::GetNumComponentsInType(gltfAttribute.type))
-            {
-                copyAccessorToDestination(
-                    source, attribute.elements.get(), gltfAttribute.count, tinygltf::GetNumComponentsInType(gltfAttribute.type),
-                    tinygltf::GetComponentSizeInBytes(gltfAttribute.componentType), byteStride
-                );
-            }
-            else
-            {
-                float fillerValue = 1.0f; // for color attributes, where the filled alpha value is 1.0f
-                copyMismatchedAccessorToDestination(
-                    source, attribute.elements.get(), gltfAttribute.count, tinygltf::GetNumComponentsInType(gltfAttribute.type),
-                    finalComponentCount, &fillerValue, tinygltf::GetComponentSizeInBytes(gltfAttribute.componentType), byteStride
-                );
-            }
-
-            primitive->attributes.push_back(std::move(attribute));
-        }
-    }
-}
-
-void Loader::details::processMaterial(std::shared_ptr<Primitive> primitive, const tinygltf::Material& gltfMaterial)
-{
-    std::shared_ptr<Material> material = std::make_shared<Material>();
-    material->materialTypeName = "glTFPBR";
-
-    // Base color factor
-    std::shared_ptr<FloatVector4Property> baseColorFactorProperty = std::make_shared<FloatVector4Property>();
-    baseColorFactorProperty->name = "baseColorFactor";
-    for (int i = 0; i < gltfMaterial.pbrMetallicRoughness.baseColorFactor.size(); i++)
-    {
-        baseColorFactorProperty->data[i] = gltfMaterial.pbrMetallicRoughness.baseColorFactor[i];
-    }
-    material->properties[baseColorFactorProperty->name] = baseColorFactorProperty;
-
-    // Base color texture
-    std::shared_ptr<TextureProperty> baseColorTextureProperty = std::make_shared<TextureProperty>();
-    baseColorTextureProperty->name = "baseColorTexture";
-    
-    std::shared_ptr<Texture> baseColorTexture = std::make_shared<Texture>();
-    processTexture(baseColorTexture, gltfMaterial.pbrMetallicRoughness.baseColorTexture);
-    baseColorTextureProperty->data = baseColorTexture;
-    material->properties[baseColorTextureProperty->name] = baseColorTextureProperty;
-
-    primitive->material = material;
 }
 
 std::shared_ptr<Material> Loader::details::createDefaultMaterial()
@@ -285,22 +391,6 @@ std::shared_ptr<Material> Loader::details::createDefaultMaterial()
     material->materialTypeName = "glTFPBR";
 
     return material;
-}
-
-void Loader::details::processTexture(std::shared_ptr<Texture> texture, const tinygltf::TextureInfo& gltfTextureInfo)
-{
-    // TODO: deal with undefined images and samplers
-    tinygltf::Texture gltfTexture = gltfModel->textures[gltfTextureInfo.index];
-    tinygltf::Image gltfImage = gltfModel->images[gltfTexture.source];
-    tinygltf::Sampler gltfSampler = gltfModel->samplers[gltfTexture.sampler];
-
-    texture->width = gltfImage.width;
-    texture->height = gltfImage.height;
-
-    texture->data = std::make_unique<std::byte[]>(gltfImage.width * gltfImage.height * 4); // tinyglTF expands images to RGBA by default
-    texture->size = gltfImage.width * gltfImage.height * 4;
-
-    memcpy(texture->data.get(), gltfImage.image.data(), gltfImage.width * gltfImage.height * 4);
 }
 
 void Loader::details::copyAccessorToDestination(std::byte* source, std::byte* destination, size_t count, size_t componentCount, size_t componentSize, size_t byteStride)

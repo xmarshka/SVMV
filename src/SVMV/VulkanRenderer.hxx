@@ -60,9 +60,9 @@ namespace SVMV
     private:
         void recordDrawCommands(int activeFrame, const vk::raii::Framebuffer& framebuffer);
 
-        void preprocessScene(std::shared_ptr<Scene> scene); // TODO: generate material contexts and materials that appear in the scene, get attribute sizes and create the buffers in VulkanScene
-        void generateDrawablesFromScene(std::shared_ptr<Node> node, glm::mat4 baseTransform); // TODO: generate drawables and load mesh data to staging buffers, recursive
-        void copyStagingBuffersToGPUBuffers(); // TODO: in the name
+        void preprocessScene(std::shared_ptr<Scene> scene);
+        void generateDrawablesFromScene(std::shared_ptr<Node> node, glm::mat4 baseTransform);
+        void copyStagingBuffersToGPUBuffers();
 
         void recreateSwapchain();
         void createRenderPass();
@@ -78,6 +78,7 @@ namespace SVMV
 
         glm::mat4 _projectionMatrix     { 1.0f };
         glm::mat4 _viewMatrix           { 1.0f };
+        glm::vec3 _cameraPosition       { 0.0f };
 
         vk::Extent2D _swapchainExtent   { 0 };
         vk::Format _swapchainFormat     { vk::Format::eUndefined };
