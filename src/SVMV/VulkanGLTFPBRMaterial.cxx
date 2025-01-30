@@ -12,7 +12,7 @@ GLTFPBRMaterial::GLTFPBRMaterial(
     _vertexShader = VulkanShader(*_device, compiler, VulkanShader::ShaderType::VERTEX, "shader.vert");
     _fragmentShader = VulkanShader(*_device, compiler, VulkanShader::ShaderType::FRAGMENT, "shader.frag");
  
-    vk::DescriptorSetLayoutBinding descriptorSetLayoutBingings[2];
+    vk::DescriptorSetLayoutBinding descriptorSetLayoutBingings[3];
     descriptorSetLayoutBingings[0].setBinding(0);
     descriptorSetLayoutBingings[0].setDescriptorCount(1);
     descriptorSetLayoutBingings[0].setDescriptorType(vk::DescriptorType::eUniformBuffer);
@@ -22,6 +22,11 @@ GLTFPBRMaterial::GLTFPBRMaterial(
     descriptorSetLayoutBingings[1].setDescriptorCount(1);
     descriptorSetLayoutBingings[1].setDescriptorType(vk::DescriptorType::eCombinedImageSampler);
     descriptorSetLayoutBingings[1].setStageFlags(vk::ShaderStageFlagBits::eFragment);
+
+    descriptorSetLayoutBingings[2].setBinding(2);
+    descriptorSetLayoutBingings[2].setDescriptorCount(1);
+    descriptorSetLayoutBingings[2].setDescriptorType(vk::DescriptorType::eCombinedImageSampler);
+    descriptorSetLayoutBingings[2].setStageFlags(vk::ShaderStageFlagBits::eFragment);
 
     vk::DescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo;
     descriptorSetLayoutCreateInfo.setBindings(descriptorSetLayoutBingings);
@@ -150,8 +155,21 @@ void GLTFPBRMaterial::processTextures(vk::raii::DescriptorSet& descriptorSet, Ma
     {
         try
         {
-            TextureProperty* baseColorFactorProperty = dynamic_cast<TextureProperty*>(material->properties["baseColorTexture"].get());
-            processCombinedImageSampler(descriptorSet, 1, resources.baseColorImage, resources.baseColorSampler, baseColorFactorProperty);
+            TextureProperty* textureProperty = dynamic_cast<TextureProperty*>(material->properties["baseColorTexture"].get());
+            processCombinedImageSampler(descriptorSet, 1, resources.baseColorImage, resources.baseColorSampler, textureProperty, vk::Format::eR8G8B8A8Srgb);
+        }
+        catch (std::bad_cast)
+        {
+            // TODO: set some default base color texture and sampler
+        }
+    }
+
+    if (material->properties.contains("normalTexture"))
+    {
+        try
+        {
+            TextureProperty* textureProperty = dynamic_cast<TextureProperty*>(material->properties["normalTexture"].get());
+            processCombinedImageSampler(descriptorSet, 2, resources.normalImage, resources.normalSampler, textureProperty, vk::Format::eR8G8B8A8Srgb);
         }
         catch (std::bad_cast)
         {
@@ -160,11 +178,11 @@ void GLTFPBRMaterial::processTextures(vk::raii::DescriptorSet& descriptorSet, Ma
     }
 }
 
-void GLTFPBRMaterial::processCombinedImageSampler(vk::raii::DescriptorSet& descriptorSet, int binding, VulkanImage& image, vk::raii::Sampler& sampler, const TextureProperty* textureProperty)
+void GLTFPBRMaterial::processCombinedImageSampler(vk::raii::DescriptorSet& descriptorSet, int binding, VulkanImage& image, vk::raii::Sampler& sampler, const TextureProperty* textureProperty, vk::Format imageFormat)
 {
     image = VulkanImage(
         _device, _immediateSubmit, _memoryAllocator, vk::Extent2D{ textureProperty->data->width, textureProperty->data->height },
-        vk::Format::eR8G8B8A8Srgb, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, textureProperty->data->data.get(),
+        imageFormat, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, textureProperty->data->data.get(),
         textureProperty->data->size
     );
 

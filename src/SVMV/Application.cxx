@@ -13,7 +13,7 @@ Application::Application(int width, int height, const std::string& name)
 
     _inputHandler.registerController(&_cameraController);
 
-    _renderer.loadScene(Loader::loadScene(RESOURCE_DIR"/models/BarramundiFish.glb"));
+    _renderer.loadScene(Loader::loadScene(RESOURCE_DIR"/models/Avocado.glb"));
 
     loop();
 }

@@ -57,6 +57,8 @@ layout(location = 3) out vec3 outNormal;
 
 layout(location = 4) out vec3 outCameraPosition;
 
+layout(location = 5) out mat3 outTangentMatrix;
+
 void main() {
     vec3 position = vec3(pushConstants.positions.data[gl_VertexIndex * 3 + 0], pushConstants.positions.data[gl_VertexIndex * 3 + 1], pushConstants.positions.data[gl_VertexIndex * 3 + 2]);
 
@@ -78,7 +80,20 @@ void main() {
     uvec2 normalsAddress = uvec2(pushConstants.normals);
     if (normalsAddress != uvec2(0))
     {
-        outNormal = mat3(transpose(inverse(pushConstants.modelMatrix.data[0]))) * vec3(pushConstants.normals.data[gl_VertexIndex * 3 + 0], pushConstants.normals.data[gl_VertexIndex * 3 + 1], pushConstants.normals.data[gl_VertexIndex * 3 + 2]);
+        vec3 normal = vec3(pushConstants.normals.data[gl_VertexIndex * 3 + 0], pushConstants.normals.data[gl_VertexIndex * 3 + 1], pushConstants.normals.data[gl_VertexIndex * 3 + 2]);
+        mat3 normalMatrix = mat3(transpose(inverse(pushConstants.modelMatrix.data[0])));
+        outNormal = normalMatrix * normal;
+
+        uvec2 tangentsAddress = uvec2(pushConstants.tangents);
+        if (tangentsAddress != uvec2(0))
+        {
+            vec3 tangent = vec3(pushConstants.tangents.data[gl_VertexIndex * 4 + 0], pushConstants.tangents.data[gl_VertexIndex * 4 + 1], pushConstants.tangents.data[gl_VertexIndex * 4 + 2]) ;
+
+            vec3 T = normalize(vec3(normalMatrix * tangent));
+            vec3 N = normalize(vec3(normalMatrix * normal));
+            vec3 B = cross(T, N);
+            outTangentMatrix = mat3(T, B, N);
+        }
     }
 
     outCameraPosition = cameraMatrices.cameraPosition.xyz;

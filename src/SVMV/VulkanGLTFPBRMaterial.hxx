@@ -39,7 +39,9 @@ namespace SVMV
         {
             VulkanUniformBuffer uniformBuffer;
             VulkanImage baseColorImage;
+            VulkanImage normalImage;
             vk::raii::Sampler baseColorSampler  { nullptr };
+            vk::raii::Sampler normalSampler     { nullptr };
         };
 
     public:
@@ -67,7 +69,7 @@ namespace SVMV
         void processTextures(vk::raii::DescriptorSet& descriptorSet, MaterialResources& resources, std::shared_ptr<Material> material);
 
         // TODO: change the TextureProperty to be a reference instead
-        void processCombinedImageSampler(vk::raii::DescriptorSet& descriptorSet, int binding, VulkanImage& image, vk::raii::Sampler& sampler, const TextureProperty* textureProperty);
+        void processCombinedImageSampler(vk::raii::DescriptorSet& descriptorSet, int binding, VulkanImage& image, vk::raii::Sampler& sampler, const TextureProperty* textureProperty, vk::Format imageFormat);
 
     private:
         vk::raii::Device* _device                                       { nullptr };

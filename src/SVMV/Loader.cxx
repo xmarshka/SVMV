@@ -80,13 +80,14 @@ std::vector<std::shared_ptr<Material>> Loader::details::processMaterials(std::sh
         processAndInsertFloatProperty(material, "roughnessFactor", gltfMaterial.pbrMetallicRoughness.roughnessFactor);
 
         processAndInsertFloatVector4Property(material, "baseColorFactor", gltfMaterial.pbrMetallicRoughness.baseColorFactor);
+        processAndInsertFloatVector4Property(material, "emissiveFactor", gltfMaterial.emissiveFactor);
 
         processAndInsertTextureProperty(textures, material, "baseColorTexture", gltfMaterial.pbrMetallicRoughness.baseColorTexture);
         processAndInsertTextureProperty(textures, material, "metallicRoughnessTexture", gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture);
 
-        processAndInsertTextureProperty(textures, material, "normalTexture", gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture);
-        processAndInsertTextureProperty(textures, material, "occlusionTexture", gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture);
-        processAndInsertTextureProperty(textures, material, "emissiveTexture", gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture);
+        processAndInsertTextureProperty(textures, material, "normalTexture", gltfMaterial.normalTexture);
+        processAndInsertTextureProperty(textures, material, "occlusionTexture", gltfMaterial.occlusionTexture);
+        processAndInsertTextureProperty(textures, material, "emissiveTexture", gltfMaterial.emissiveTexture);
 
         materials.push_back(material);
     }

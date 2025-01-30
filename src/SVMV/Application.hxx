@@ -17,7 +17,7 @@ namespace SVMV
         VulkanRenderer _renderer{ 1280, 1280, "SVMV", 2, _window };
 
         InputHandler _inputHandler;
-        CameraControllerNoclip _cameraController{ true, 4.0f, 3.0f, glm::vec3(0.0f, 0.0f, 2.0f), 0.0f, -90.0f };
+        CameraControllerNoclip _cameraController{ true, 0.2f, 0.06f, glm::vec3(0.0f, 0.0f, 0.2f), 0.0f, -90.0f };
 
     public:
         Application() = delete;

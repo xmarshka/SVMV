@@ -141,7 +141,7 @@ void VulkanRenderer::loadScene(std::shared_ptr<Scene> scene)
 
 void VulkanRenderer::setCamera(glm::vec3 position, glm::vec3 lookDirection, glm::vec3 upDirection, float fieldOfView)
 {
-    _projectionMatrix = glm::perspective(glm::radians(fieldOfView), (float)_swapchainExtent.width / (float)_swapchainExtent.height, 0.1f, 100.0f);
+    _projectionMatrix = glm::perspective(glm::radians(fieldOfView), (float)_swapchainExtent.width / (float)_swapchainExtent.height, 0.01f, 100.0f);
     _projectionMatrix[1][1] *= -1;
 
     _viewMatrix = glm::lookAt(position, position + lookDirection, upDirection);
