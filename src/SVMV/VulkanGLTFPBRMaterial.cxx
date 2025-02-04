@@ -9,8 +9,8 @@ GLTFPBRMaterial::GLTFPBRMaterial(
 )
     : _device(device), _memoryAllocator(memoryAllocator), _immediateSubmit(immediateSubmit), _descriptorAllocator(descriptorAllocator), _descriptorWriter(descriptorWriter)
 {
-    _vertexShader = VulkanShader(*_device, compiler, VulkanShader::ShaderType::VERTEX, "shader.vert");
-    _fragmentShader = VulkanShader(*_device, compiler, VulkanShader::ShaderType::FRAGMENT, "shader.frag");
+    _vertexShader = VulkanShader(*_device, compiler, VulkanShader::ShaderType::VERTEX, "gltf_pbr_vert.glsl");
+    _fragmentShader = VulkanShader(*_device, compiler, VulkanShader::ShaderType::FRAGMENT, "gltf_pbr_frag.glsl");
  
     vk::DescriptorSetLayoutBinding descriptorSetLayoutBingings[3];
     descriptorSetLayoutBingings[0].setBinding(0);

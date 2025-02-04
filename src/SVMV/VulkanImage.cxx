@@ -214,10 +214,17 @@ void VulkanImage::fillImage(void* data, size_t size)
     vk::DependencyInfo dependencyInfoPost = dependencyInfo;
     dependencyInfoPost.setImageMemoryBarriers(imageMemoryBarrierPost);
 
-    _immediateSubmit->submit([&](vk::CommandBuffer commandBuffer)
+    vk::raii::Fence* fence = _immediateSubmit->submit([&](vk::CommandBuffer commandBuffer)
         {
             commandBuffer.pipelineBarrier2(dependencyInfo);
             commandBuffer.copyBufferToImage(stagingBuffer.getBuffer(), _image, vk::ImageLayout::eTransferDstOptimal, bufferImageCopy);
             commandBuffer.pipelineBarrier2(dependencyInfoPost);
         });
+
+    vk::Result waitForFencesResult = _device->waitForFences(**fence, true, INT32_MAX);
+
+    if (waitForFencesResult != vk::Result::eSuccess)
+    {
+        throw std::runtime_error("vulkan: failure waiting for fences");
+    }
 }

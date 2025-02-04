@@ -51,7 +51,7 @@ VulkanUtilities::ImmediateSubmit& VulkanUtilities::ImmediateSubmit::operator=(Im
     return *this;
 }
 
-void VulkanUtilities::ImmediateSubmit::submit(std::function<void(const vk::raii::CommandBuffer& commandBuffer)>&& lambda)
+vk::raii::Fence* VulkanUtilities::ImmediateSubmit::submit(std::function<void(const vk::raii::CommandBuffer& commandBuffer)>&& lambda)
 {
     vk::Result waitForFencesResult = _device->waitForFences(*(_fence), true, INT32_MAX);
 
@@ -75,6 +75,8 @@ void VulkanUtilities::ImmediateSubmit::submit(std::function<void(const vk::raii:
     submitInfo.setCommandBuffers(*(_commandBuffer));
 
     _queue->submit(submitInfo, _fence);
+
+    return &_fence;
 }
 
 VulkanUtilities::DescriptorAllocator::DescriptorAllocator(vk::raii::Device* device)

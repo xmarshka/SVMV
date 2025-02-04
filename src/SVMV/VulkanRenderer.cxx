@@ -172,6 +172,9 @@ void VulkanRenderer::recordDrawCommands(int activeFrame, const vk::raii::Framebu
 
     _drawCommandBuffers[activeFrame].begin(vk::CommandBufferBeginInfo());
 
+    // TODO:    shadow mapping render pass
+    //          barriers (for the image?)
+
     vk::RenderPassBeginInfo renderPassBeginInfo;
     renderPassBeginInfo.setRenderPass(_renderPass);
     renderPassBeginInfo.setFramebuffer(framebuffer);
@@ -444,6 +447,8 @@ void VulkanRenderer::createGlobalDescriptorSets()
         _globalDescriptorSetBuffers.push_back(VulkanUniformBuffer(&_device, _vmaAllocator.getAllocator(), sizeof(ShaderStructures::GlobalUniformBuffer)));
         _globalDescriptorSets.push_back(std::move(_descriptorAllocator.allocateSet(_globalDescriptorSetLayout)));
     }
+
+    // TODO: write shadow map to global descriptor set
 }
 
 void VulkanRenderer::createDepthBuffer()

@@ -29,7 +29,9 @@ namespace SVMV
     namespace Loader
     {
         std::shared_ptr<Scene> loadScene(const std::string& filePath);
+
         void appendScene(std::shared_ptr<Scene> scene, const std::string& filePath, glm::mat4 appendedSceneTransformOffset = glm::mat4(0.0f)); // TODO
+        void appendScene(std::shared_ptr<Scene> scene, std::shared_ptr<Node> node, glm::mat4 appendedSceneTransformOffset = glm::mat4(0.0f)); // TODO
 
         namespace details
         {

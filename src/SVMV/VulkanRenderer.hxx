@@ -66,6 +66,8 @@ namespace SVMV
 
         void recreateSwapchain();
         void createRenderPass();
+        void createShadowMappingRenderPass();
+        void createShadowMappingPipeline();
         void createGlobalDescriptorSets();
         void createDepthBuffer();
 
@@ -109,6 +111,8 @@ namespace SVMV
         std::vector<vk::raii::Framebuffer> _framebuffers;
         
         VulkanImage _depthBuffer;
+        VulkanImage _shadowBuffer;
+        vk::raii::Framebuffer _shadowFramebuffer        { nullptr };
 
         std::vector<vk::raii::Semaphore> _imageReadySemaphores;
         std::vector<vk::raii::Semaphore> _renderCompleteSemaphores;
@@ -119,6 +123,10 @@ namespace SVMV
         std::vector<vk::raii::DescriptorSet> _globalDescriptorSets;
 
         VulkanScene _scene;
+
+        vk::raii::Pipeline _shadowMappingPipeline           { nullptr };
+        vk::raii::RenderPass _shadowMappingRenderPass       { nullptr };
+
         VulkanInitilization _initilization;
     };
 }

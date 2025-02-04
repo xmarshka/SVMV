@@ -26,7 +26,7 @@ namespace SVMV
 
             ~ImmediateSubmit() = default;
 
-            void submit(std::function<void(const vk::raii::CommandBuffer& commandBuffer)>&& lambda);
+            vk::raii::Fence* submit(std::function<void(const vk::raii::CommandBuffer& commandBuffer)>&& lambda);
 
         private:
             vk::raii::Device* _device{ nullptr };

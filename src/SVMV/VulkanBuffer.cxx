@@ -214,10 +214,19 @@ void VulkanStagingBuffer::copyToBuffer(const VulkanBuffer& destination, size_t s
     copy.setSrcOffset(0);
     copy.setDstOffset(offset);
 
-    _immediateSubmit->submit([&](vk::CommandBuffer commandBuffer)
+    // TODO: have this wait for fence for the copy
+
+    /*vk::raii::Fence* fence = */_immediateSubmit->submit([&](vk::CommandBuffer commandBuffer)
         {
             commandBuffer.copyBuffer(_buffer, *destination.getBuffer(), copy);
         });
+
+    /*vk::Result waitForFencesResult = _device->waitForFences(**fence, true, INT32_MAX);
+
+    if (waitForFencesResult != vk::Result::eSuccess)
+    {
+        throw std::runtime_error("vulkan: failure waiting for fences");
+    }*/
 }
 
 VulkanUniformBuffer::VulkanUniformBuffer(vk::raii::Device* device, VmaAllocator vmaAllocator, size_t bufferSize)
