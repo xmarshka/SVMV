@@ -102,7 +102,7 @@ GLTFPBRMaterial& GLTFPBRMaterial::operator=(GLTFPBRMaterial&& other) noexcept
     return *this;
 }
 
-vk::raii::DescriptorSet* GLTFPBRMaterial::createDescriptorSet(std::shared_ptr<Material> material)
+vk::DescriptorSet GLTFPBRMaterial::createDescriptorSet(std::shared_ptr<Material> material)
 {
     vk::raii::DescriptorSet descriptorSet = _descriptorAllocator->allocateSet(_descriptorSetLayout);
     MaterialResources resources;
@@ -113,7 +113,7 @@ vk::raii::DescriptorSet* GLTFPBRMaterial::createDescriptorSet(std::shared_ptr<Ma
     _resources.push_back(std::move(resources));
     _descriptorSets.push_back(std::move(descriptorSet));
 
-    return &_descriptorSets.back();
+    return *_descriptorSets.back();
 }
 
 const vk::raii::Pipeline* GLTFPBRMaterial::getPipeline() const
@@ -169,7 +169,7 @@ void GLTFPBRMaterial::processTextures(vk::raii::DescriptorSet& descriptorSet, Ma
         try
         {
             TextureProperty* textureProperty = dynamic_cast<TextureProperty*>(material->properties["normalTexture"].get());
-            processCombinedImageSampler(descriptorSet, 2, resources.normalImage, resources.normalSampler, textureProperty, vk::Format::eR8G8B8A8Srgb);
+            processCombinedImageSampler(descriptorSet, 2, resources.normalImage, resources.normalSampler, textureProperty, vk::Format::eR8G8B8A8Unorm);
         }
         catch (std::bad_cast)
         {

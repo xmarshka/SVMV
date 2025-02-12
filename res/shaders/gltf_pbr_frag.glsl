@@ -30,9 +30,9 @@ float d_trowbridge_reitz(in vec3 N, in vec3 H, in float alpha) {
     return numerator / denominator;
 }
 
-float g_schlick_ggx(in vec3 A, in vec3 N, in vec3 H, in float alpha) {
+float g_smith_ggx(in vec3 A, in vec3 N, in vec3 H, in float alpha) {
+    float alpha_sq = alpha * alpha;
     float dot_N_A = max(dot(N, A), 0.0);
-    float alpha_sq = pow(alpha, 2);
 
     float numerator = 2 * dot_N_A;
     float denominator = dot_N_A + sqrt(alpha_sq + (1 - alpha_sq) * dot_N_A * dot_N_A);
@@ -40,16 +40,16 @@ float g_schlick_ggx(in vec3 A, in vec3 N, in vec3 H, in float alpha) {
     return numerator / denominator;
 }
 
-float g_schlick_ggx_ms(in vec3 N, in vec3 V, in vec3 L, in vec3 H, in float alpha) {
-    return g_schlick_ggx(V, N, H, alpha) * g_schlick_ggx(L, N, H, alpha);
+float g_smith_ggx_ms(in vec3 N, in vec3 V, in vec3 L, in vec3 H, in float alpha) {
+    return g_smith_ggx(V, N, H, alpha) * g_smith_ggx(L, N, H, alpha);
 }
 
 float f_schlick(in vec3 H, in vec3 V, in float f_0) {
-    return f_0 + (1.0 - f_0) * pow(1.0 - abs(dot(V, H)), 5);
+    return f_0 + (1.0 - f_0) * pow(1.0 - max(dot(V, H), 0.0), 5);
 }
 
 vec3 brdf_s_cook_torrance(in vec3 L, in vec3 V, in vec3 N, in vec3 H, in float alpha, in vec3 base_col) {
-    return vec3(1.0, 1.0, 1.0) * ((d_trowbridge_reitz(N, H, alpha) * g_schlick_ggx_ms(N, V, L, H, alpha)) / (4.0 * max(dot(N, L), 0.0) * max(dot(N, V), 0.0) + 0.0001));
+    return vec3(1.0, 1.0, 1.0) * ((d_trowbridge_reitz(N, H, alpha) * g_smith_ggx_ms(N, V, L, H, alpha)) / (4.0 * max(dot(N, L), 0.0) * max(dot(N, V), 0.0) + 0.0001));
 }
 
 vec3 brdf_d_lambert(in vec3 base_col) {
@@ -60,7 +60,7 @@ void main() {
     vec3 ws_N = normalize(ts_mat * (texture(normal_tx, uv0).rgb * 2.0 - 1.0));
     //vec3 ws_N = ws_Ng;
 
-    vec3 light_pos = vec3(0.04, 0.03, -0.5);
+    vec3 light_pos = vec3(0.0, 0.0, 2.0);
     vec3 light_col = vec3(2.0, 2.0, 2.0);
 
     float light_distance = length(light_pos - ws_P);
@@ -75,9 +75,10 @@ void main() {
     float roughness = 0.3;
     vec3 base_col = vec3(texture(base_col_tx, uv0));
 
-    float ambient_factor = 0.02;
+    float ambient_factor = 0.01;
 
     // DIELECTRIC MATERIALS
     vec3 radiance = light_col / (light_distance * light_distance + 0.001);
+
     out_col = vec4(ambient_factor * base_col + (((k_d * brdf_d_lambert(base_col)) + (k_s * brdf_s_cook_torrance(ws_L, ws_V, ws_N, ws_H, roughness * roughness, base_col))) * radiance * max(dot(ws_N, ws_L), 0.0)), 1.0);
 }

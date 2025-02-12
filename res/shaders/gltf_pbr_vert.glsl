@@ -57,10 +57,9 @@ void main() {
         out_ws_Ng = ws_Ng;
 
         if (uvec2(pc.T_buf) != uvec2(0)) {
-            // w element of tangents is ignored (for now)
             vec3 ws_T = normalize(vec3(normal_mat * vec3(pc.T_buf.data[gl_VertexIndex * 4 + 0], pc.T_buf.data[gl_VertexIndex * 4 + 1], pc.T_buf.data[gl_VertexIndex * 4 + 2])));
 
-            vec3 ws_B = cross(ws_T, ws_Ng);
+            vec3 ws_B = normalize(cross(ws_T, ws_Ng) * pc.T_buf.data[gl_VertexIndex * 4 + 3]);
 
             out_ts_mat = mat3(ws_T, ws_B, ws_Ng);
         }

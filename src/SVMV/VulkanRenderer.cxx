@@ -200,7 +200,7 @@ void VulkanRenderer::recordDrawCommands(int activeFrame, const vk::raii::Framebu
 
         for (const auto& drawable : context.second.drawables)
         {
-            _drawCommandBuffers[activeFrame].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *context.second.pipelineLayout, 1, **drawable.descriptorSet, nullptr);
+            _drawCommandBuffers[activeFrame].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *context.second.pipelineLayout, 1, drawable.descriptorSet, nullptr);
 
             constants.positions = drawable.attributeAddresses.positions;
             constants.normals = drawable.attributeAddresses.normals;
@@ -321,6 +321,14 @@ void VulkanRenderer::generateDrawablesFromScene(std::shared_ptr<Node> node, glm:
                     {
                         throw std::runtime_error("Unsupported material type.");
                     }
+                }
+                else if (primitive->material->materialTypeName == "glTFPBR")
+                {
+                    drawable.descriptorSet = _scene.glTFPBRMaterial.createDescriptorSet(primitive->material);
+                }
+                else
+                {
+                    throw std::runtime_error("Unsupported material type.");
                 }
             }
 

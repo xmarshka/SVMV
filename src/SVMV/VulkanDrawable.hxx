@@ -29,7 +29,7 @@ namespace SVMV
         vk::DeviceAddress modelMatrixAddress        { 0 };
         AttributeAddresses attributeAddresses;
 
-        vk::raii::DescriptorSet* descriptorSet      { nullptr };
+        vk::DescriptorSet descriptorSet      { nullptr };
 
         void setAddress(AttributeType type, vk::DeviceAddress value)
         {

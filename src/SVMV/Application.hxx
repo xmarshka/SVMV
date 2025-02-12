@@ -13,11 +13,11 @@ namespace SVMV
     class Application
     {
     private:
-        GLFWwindowWrapper _window{ 1280, 1280, "SVMV", this };
-        VulkanRenderer _renderer{ 1280, 1280, "SVMV", 2, _window };
+        GLFWwindowWrapper _window{ 1440, 1440, "SVMV", this };
+        VulkanRenderer _renderer{ 1440, 1440, "SVMV", 2, _window };
 
         InputHandler _inputHandler;
-        CameraControllerNoclip _cameraController{ true, 0.1f, 0.06f, glm::vec3(0.0f, 0.03f, 0.2f), 0.0f, -90.0f };
+        CameraControllerNoclip _cameraController{ true, 0.3f, 0.06f, glm::vec3(0.0f, 0.0f, 0.5f), 0.0f, -90.0f };
 
     public:
         Application() = delete;

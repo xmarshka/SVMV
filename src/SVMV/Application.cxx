@@ -13,7 +13,7 @@ Application::Application(int width, int height, const std::string& name)
 
     _inputHandler.registerController(&_cameraController);
 
-    _renderer.loadScene(Loader::loadScene(RESOURCE_DIR"/models/Avocado.glb"));
+    _renderer.loadScene(Loader::loadScene(RESOURCE_DIR"/models/WaterBottle.glb"));
 
     loop();
 }
@@ -33,6 +33,7 @@ void Application::loop()
         std::chrono::duration<float> deltaTime = duration_cast<std::chrono::duration<float>>(time2 - time1);
 
         _cameraController.Process(deltaTime.count());
+        //std::cout << deltaTime.count() << std::endl;
     }
 
     _renderer.getDevice().waitIdle();

@@ -59,7 +59,7 @@ namespace SVMV
 
         ~GLTFPBRMaterial() = default;
 
-        vk::raii::DescriptorSet* createDescriptorSet(std::shared_ptr<Material> material);
+        vk::DescriptorSet createDescriptorSet(std::shared_ptr<Material> material);
 
         const vk::raii::Pipeline* getPipeline() const;
         const vk::raii::PipelineLayout* getPipelineLayout() const;
