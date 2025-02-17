@@ -208,6 +208,7 @@ void VulkanRenderer::recordDrawCommands(int activeFrame, const vk::raii::Framebu
             constants.texcoords_0 = drawable.attributeAddresses.texcoords_0;
             constants.colors_0 = drawable.attributeAddresses.colors_0;
             constants.modelMatrix = drawable.modelMatrixAddress;
+            constants.normalMatrix = drawable.normalMatrixAddress;
 
             _drawCommandBuffers[activeFrame].pushConstants<ShaderStructures::PushConstants>(*context.second.pipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, constants);
             _drawCommandBuffers[activeFrame].drawIndexed(drawable.indexCount, 1, drawable.firstIndex, 0, 0);
@@ -256,6 +257,9 @@ void VulkanRenderer::preprocessScene(std::shared_ptr<Scene> scene)
     _scene.modelMatrixGPUBuffer = VulkanGPUBuffer(&_device, _vmaAllocator.getAllocator(), modelMatrixCount * sizeof(glm::mat4), vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress);
     _scene.modelMatrixStagingBuffer = VulkanStagingBuffer(&_device, _scene.modelMatrixGPUBuffer, &_immediateSubmit);
 
+    _scene.normalMatrixGPUBuffer = VulkanGPUBuffer(&_device, _vmaAllocator.getAllocator(), modelMatrixCount * sizeof(glm::mat4), vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress);
+    _scene.normalMatrixStagingBuffer = VulkanStagingBuffer(&_device, _scene.normalMatrixGPUBuffer, &_immediateSubmit);
+
     for (const auto& attributeSize : attributeSizeMap)
     {
         VertexAttribute vertexAttribute;
@@ -287,10 +291,16 @@ void VulkanRenderer::generateDrawablesFromScene(std::shared_ptr<Node> node, glm:
                 _scene.indexCounter += primitive->indices.size();
 
                 _scene.indexStagingBuffer.pushData(primitive->indices.data(), primitive->indices.size() * sizeof(decltype(primitive->indices)::value_type));
-                _scene.modelMatrixStagingBuffer.pushData(&baseTransform, sizeof(glm::mat4));
 
-                drawable.modelMatrixAddress = _scene.modelMatrixGPUBuffer.getAddress(_device) + _scene.modelMatrixCounter * sizeof(glm::mat4);
-                _scene.modelMatrixCounter++;
+                _scene.modelMatrixStagingBuffer.pushData(&baseTransform, sizeof(glm::mat4));
+                drawable.modelMatrixAddress = _scene.modelMatrixGPUBuffer.getAddress(_device) + _scene.drawableCounter * sizeof(glm::mat4);
+
+                // create and push normal matrix
+                glm::mat4 normalMatrix = glm::transpose(glm::inverse(baseTransform)); // mat4 for alignment, 4th dimension is dropped in shader
+                _scene.normalMatrixStagingBuffer.pushData(&normalMatrix, sizeof(glm::mat4));
+                drawable.normalMatrixAddress = _scene.normalMatrixGPUBuffer.getAddress(_device) + _scene.drawableCounter * sizeof(glm::mat4);
+
+                _scene.drawableCounter++;
 
                 for (const auto& attribute : primitive->attributes)
                 {
@@ -348,6 +358,9 @@ void VulkanRenderer::copyStagingBuffersToGPUBuffers()
     _graphicsQueue.waitIdle(); // TODO: proper synchronisation
 
     _scene.modelMatrixStagingBuffer.copyToBuffer(_scene.modelMatrixGPUBuffer);
+    _graphicsQueue.waitIdle(); // TODO: proper synchronisation
+
+    _scene.normalMatrixStagingBuffer.copyToBuffer(_scene.normalMatrixGPUBuffer);
     _graphicsQueue.waitIdle(); // TODO: proper synchronisation
 
     for (auto& attribute : _scene.attributes)

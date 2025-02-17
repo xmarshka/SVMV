@@ -65,8 +65,6 @@ std::vector<std::shared_ptr<Material>> Loader::details::processMaterials(std::sh
 {
     std::vector<std::shared_ptr<Material>> materials;
 
-    // TODO: texture map to not duplicate images
-    // INSTEAD... load all texture to a vector as sharedptrs and then assign when processing materials
     // WITH... a default texture at index 0 (?)
     std::vector<std::shared_ptr<Texture>> textures = processTextures(gltfScene);
 
@@ -116,6 +114,8 @@ std::vector<std::shared_ptr<Texture>> Loader::details::processTextures(std::shar
             texture->size = gltfImage.width * gltfImage.height * 4;
 
             memcpy(texture->data.get(), gltfImage.image.data(), gltfImage.width * gltfImage.height * 4);
+
+            std::byte* debug = texture->data.get();
         }
 
         textures.push_back(texture);

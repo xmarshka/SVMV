@@ -11,12 +11,13 @@ namespace SVMV
     {
         struct PushConstants
         {
-            vk::DeviceAddress positions     { 0 };
-            vk::DeviceAddress normals       { 0 };
-            vk::DeviceAddress tangents      { 0 };
-            vk::DeviceAddress texcoords_0   { 0 };
-            vk::DeviceAddress colors_0      { 0 };
-            vk::DeviceAddress modelMatrix   { 0 };
+            vk::DeviceAddress positions         { 0 };
+            vk::DeviceAddress normals           { 0 };
+            vk::DeviceAddress tangents          { 0 };
+            vk::DeviceAddress texcoords_0       { 0 };
+            vk::DeviceAddress colors_0          { 0 };
+            vk::DeviceAddress modelMatrix       { 0 };
+            vk::DeviceAddress normalMatrix      { 0 };
         };
 
         struct GlobalUniformBuffer

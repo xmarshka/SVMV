@@ -310,7 +310,7 @@ vk::raii::Pipeline VulkanUtilities::createPipeline(const vk::raii::Device& devic
     rasterizationStateInfo.setRasterizerDiscardEnable(vk::False);
     rasterizationStateInfo.setPolygonMode(vk::PolygonMode::eFill);
     rasterizationStateInfo.setLineWidth(1.0f);
-    rasterizationStateInfo.setCullMode(vk::CullModeFlagBits::eNone);
+    rasterizationStateInfo.setCullMode(vk::CullModeFlagBits::eBack);
     rasterizationStateInfo.setFrontFace(vk::FrontFace::eCounterClockwise);
     rasterizationStateInfo.setDepthBiasEnable(vk::False);
 

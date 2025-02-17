@@ -29,7 +29,7 @@ namespace SVMV
         [[nodiscard]] const VmaAllocator getAllocator() const;
         [[nodiscard]] const VmaAllocation getAllocation() const;
         [[nodiscard]] const size_t getSize() const;
-        [[nodiscard]] const vk::DeviceAddress getAddress(const vk::Device& device) const;
+        [[nodiscard]] const vk::DeviceAddress getAddress(const vk::Device& device) const; // TODO: get address at creation and make this a getter
 
     protected:
         vk::raii::Buffer _buffer    { nullptr };

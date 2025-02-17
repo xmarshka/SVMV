@@ -27,6 +27,7 @@ namespace SVMV
         uint32_t indexCount     { 0 };
 
         vk::DeviceAddress modelMatrixAddress        { 0 };
+        vk::DeviceAddress normalMatrixAddress       { 0 };
         AttributeAddresses attributeAddresses;
 
         vk::DescriptorSet descriptorSet      { nullptr };

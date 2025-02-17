@@ -12,21 +12,43 @@ GLTFPBRMaterial::GLTFPBRMaterial(
     _vertexShader = VulkanShader(*_device, compiler, VulkanShader::ShaderType::VERTEX, "gltf_pbr_vert.glsl");
     _fragmentShader = VulkanShader(*_device, compiler, VulkanShader::ShaderType::FRAGMENT, "gltf_pbr_frag.glsl");
  
-    vk::DescriptorSetLayoutBinding descriptorSetLayoutBingings[3];
+    // TODO: think about rewriting this as a vector and n pushBacks
+
+    vk::DescriptorSetLayoutBinding descriptorSetLayoutBingings[6];
     descriptorSetLayoutBingings[0].setBinding(0);
     descriptorSetLayoutBingings[0].setDescriptorCount(1);
     descriptorSetLayoutBingings[0].setDescriptorType(vk::DescriptorType::eUniformBuffer);
     descriptorSetLayoutBingings[0].setStageFlags(vk::ShaderStageFlagBits::eVertex);
 
+    // base color texture
     descriptorSetLayoutBingings[1].setBinding(1);
     descriptorSetLayoutBingings[1].setDescriptorCount(1);
     descriptorSetLayoutBingings[1].setDescriptorType(vk::DescriptorType::eCombinedImageSampler);
     descriptorSetLayoutBingings[1].setStageFlags(vk::ShaderStageFlagBits::eFragment);
 
+    // normal texture
     descriptorSetLayoutBingings[2].setBinding(2);
     descriptorSetLayoutBingings[2].setDescriptorCount(1);
     descriptorSetLayoutBingings[2].setDescriptorType(vk::DescriptorType::eCombinedImageSampler);
     descriptorSetLayoutBingings[2].setStageFlags(vk::ShaderStageFlagBits::eFragment);
+
+    // metallic roughness texture
+    descriptorSetLayoutBingings[3].setBinding(3);
+    descriptorSetLayoutBingings[3].setDescriptorCount(1);
+    descriptorSetLayoutBingings[3].setDescriptorType(vk::DescriptorType::eCombinedImageSampler);
+    descriptorSetLayoutBingings[3].setStageFlags(vk::ShaderStageFlagBits::eFragment);
+
+    // occlusion texture
+    descriptorSetLayoutBingings[4].setBinding(4);
+    descriptorSetLayoutBingings[4].setDescriptorCount(1);
+    descriptorSetLayoutBingings[4].setDescriptorType(vk::DescriptorType::eCombinedImageSampler);
+    descriptorSetLayoutBingings[4].setStageFlags(vk::ShaderStageFlagBits::eFragment);
+
+    // emissive texture
+    descriptorSetLayoutBingings[5].setBinding(5);
+    descriptorSetLayoutBingings[5].setDescriptorCount(1);
+    descriptorSetLayoutBingings[5].setDescriptorType(vk::DescriptorType::eCombinedImageSampler);
+    descriptorSetLayoutBingings[5].setStageFlags(vk::ShaderStageFlagBits::eFragment);
 
     vk::DescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo;
     descriptorSetLayoutCreateInfo.setBindings(descriptorSetLayoutBingings);
@@ -170,6 +192,19 @@ void GLTFPBRMaterial::processTextures(vk::raii::DescriptorSet& descriptorSet, Ma
         {
             TextureProperty* textureProperty = dynamic_cast<TextureProperty*>(material->properties["normalTexture"].get());
             processCombinedImageSampler(descriptorSet, 2, resources.normalImage, resources.normalSampler, textureProperty, vk::Format::eR8G8B8A8Unorm);
+        }
+        catch (std::bad_cast)
+        {
+            // TODO: set some default base color texture and sampler
+        }
+    }
+
+    if (material->properties.contains("metallicRoughnessTexture"))
+    {
+        try
+        {
+            TextureProperty* textureProperty = dynamic_cast<TextureProperty*>(material->properties["metallicRoughnessTexture"].get());
+            processCombinedImageSampler(descriptorSet, 3, resources.metallicRoughnessImage, resources.metallicRoughnessSampler, textureProperty, vk::Format::eR8G8B8A8Unorm);
         }
         catch (std::bad_cast)
         {

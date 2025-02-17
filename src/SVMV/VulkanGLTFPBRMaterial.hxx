@@ -38,10 +38,18 @@ namespace SVMV
         struct MaterialResources
         {
             VulkanUniformBuffer uniformBuffer;
+
             VulkanImage baseColorImage;
             VulkanImage normalImage;
-            vk::raii::Sampler baseColorSampler  { nullptr };
-            vk::raii::Sampler normalSampler     { nullptr };
+            VulkanImage metallicRoughnessImage;
+            VulkanImage occlusionImage;
+            VulkanImage emissiveImage;
+
+            vk::raii::Sampler baseColorSampler              { nullptr };
+            vk::raii::Sampler normalSampler                 { nullptr };
+            vk::raii::Sampler metallicRoughnessSampler      { nullptr };
+            vk::raii::Sampler occlusionSampler              { nullptr };
+            vk::raii::Sampler emissiveSampler               { nullptr };
         };
 
     public:

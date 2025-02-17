@@ -30,7 +30,10 @@ namespace SVMV
 
         VulkanGPUBuffer modelMatrixGPUBuffer;
         VulkanStagingBuffer modelMatrixStagingBuffer;
-        int modelMatrixCounter{ 0 };
+
+        VulkanGPUBuffer normalMatrixGPUBuffer;
+        VulkanStagingBuffer normalMatrixStagingBuffer;
+        int drawableCounter{ 0 };
 
         std::vector<VertexAttribute> attributes; // holds the buffers containing attribute data for all drawables in the scene
 

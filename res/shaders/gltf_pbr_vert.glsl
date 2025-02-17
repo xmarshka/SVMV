@@ -14,12 +14,13 @@ layout(set = 1, binding = 0) uniform MaterialUniformParameters {
     vec4 roughnessMetallicFactors;
 } mat_param_buf;
 
-layout(buffer_reference, std430) readonly buffer ModelMatrix { mat4 data[]; };
 layout(buffer_reference, std430) readonly buffer PositionsBuffer { float data[]; }; // vec3s as float array
 layout(buffer_reference, std430) readonly buffer NormalsBuffer { float data[]; }; // vec3s as float array
 layout(buffer_reference, std430) readonly buffer TangentsBuffer { float data[]; }; // vec4s as float array
 layout(buffer_reference, std430) readonly buffer Texcoords_0Buffer { float data[]; }; // vec2s as float array
 layout(buffer_reference, std430) readonly buffer Colors_0Buffer { float data[]; }; // vec4s as float array
+layout(buffer_reference, std430) readonly buffer ModelMatrix { mat4 data[]; };
+layout(buffer_reference, std430) readonly buffer NormalMatrix { mat4 data[]; };
 
 layout(push_constant) uniform PushConstants {
     PositionsBuffer P_buf;
@@ -28,6 +29,7 @@ layout(push_constant) uniform PushConstants {
     Texcoords_0Buffer uv0_buf;
     Colors_0Buffer col0_buf;
     ModelMatrix model_mat_buf;
+    NormalMatrix normal_mat_buf;
 } pc;
 
 layout(location = 0) out vec4 out_col0;
@@ -51,7 +53,7 @@ void main() {
     out_ws_Ng = vec3(0.0, 0.0, 0.0);
 
     if (uvec2(pc.N_buf) != uvec2(0)){
-        mat3 normal_mat = mat3(transpose(inverse(pc.model_mat_buf.data[0])));
+        mat3 normal_mat = mat3(pc.normal_mat_buf.data[0]);
 
         vec3 ws_Ng = normalize(normal_mat * vec3(pc.N_buf.data[gl_VertexIndex * 3 + 0], pc.N_buf.data[gl_VertexIndex * 3 + 1], pc.N_buf.data[gl_VertexIndex * 3 + 2]));
         out_ws_Ng = ws_Ng;
