@@ -185,12 +185,91 @@ void Loader::details::processAndInsertTextureProperty(const std::vector<std::sha
     }
 }
 
-void Loader::details::generateTangents(std::shared_ptr<Mesh> mesh)
+void Loader::details::generateTangents(std::shared_ptr<Primitive> primitive)
 {
-    // TODO: reinterpret vector for appropriate types (floats), create lambdas with reference capture, run generation
+    Attribute tangentAttribute;
+    tangentAttribute.attributeType = AttributeType::TANGENT;
+    tangentAttribute.componentCount = 4;
+    tangentAttribute.count = getAttributeByType(primitive.get(), AttributeType::NORMAL)->count;
+    tangentAttribute.type = Type::FLOAT;
+    tangentAttribute.size = tangentAttribute.count * tangentAttribute.componentCount * sizeof(float);
+    tangentAttribute.elements = std::make_unique_for_overwrite<std::byte[]>(tangentAttribute.size);
+
+    primitive->attributes.push_back(tangentAttribute);
+
+    SMikkTSpaceContext context = {};
+    context.m_pUserData = primitive.get();
 
     SMikkTSpaceInterface interface = {};
-    interface.m_getNumVerticesOfFace = [](const SMikkTSpaceContext* context, int face) { return 3; };
+    interface.m_getNumFaces = [](const SMikkTSpaceContext* context) -> int
+    {
+        return reinterpret_cast<Primitive*>(context->m_pUserData)->indices.size() / 3;
+    };
+
+    interface.m_getNumVerticesOfFace = [](const SMikkTSpaceContext* context, int face) -> int
+    {
+        return 3;
+    };
+
+    interface.m_getPosition = [](const SMikkTSpaceContext* context, float fvPosOut[], const int face, const int vert)
+    {
+        Primitive* primitive = (Primitive*)(context->m_pUserData);
+        Attribute* attribute = getAttributeByType(primitive, AttributeType::POSITION);
+
+        float* positions = (float*)(attribute->elements.get());
+
+        int index = primitive->indices[face * 3 + vert] * attribute->componentCount;
+
+        fvPosOut[0] = positions[index];
+        fvPosOut[1] = positions[index + 1];
+        fvPosOut[2] = positions[index + 2];
+    };
+
+    interface.m_getNormal = [](const SMikkTSpaceContext* context, float fvNormOut[], const int face, const int vert)
+    {
+        Primitive* primitive = (Primitive*)(context->m_pUserData);
+        Attribute* attribute = getAttributeByType(primitive, AttributeType::NORMAL);
+
+        float* normals = (float*)(attribute->elements.get());
+
+        int index = primitive->indices[face * 3 + vert] * attribute->componentCount;
+
+        fvNormOut[0] = normals[index];
+        fvNormOut[1] = normals[index + 1];
+        fvNormOut[2] = normals[index + 2];
+    };
+
+    interface.m_getPosition = [](const SMikkTSpaceContext* context, float fvTexcOut[], const int face, const int vert)
+    {
+        Primitive* primitive = (Primitive*)(context->m_pUserData);
+        Attribute* attribute = getAttributeByType(primitive, AttributeType::TEXCOORD_0);
+
+        float* texcoords = (float*)(attribute->elements.get());
+
+        int index = primitive->indices[face * 3 + vert] * attribute->componentCount;
+
+        fvTexcOut[0] = texcoords[index];
+        fvTexcOut[1] = texcoords[index + 1];
+    };
+
+    interface.m_setTSpaceBasic = [](const SMikkTSpaceContext* context, const float fvTangent[], const float sign, const int face, const int vert)
+    {
+        Primitive* primitive = (Primitive*)(context->m_pUserData);
+        Attribute* attribute = getAttributeByType(primitive, AttributeType::TANGENT);
+
+        float* tangents = (float*)(attribute->elements.get());
+
+        int index = primitive->indices[face * 3 + vert] * attribute->componentCount;
+
+        tangents[index] = fvTangent[0];
+        tangents[index + 1] = fvTangent[1];
+        tangents[index + 2] = fvTangent[2];
+        tangents[index + 3] = sign;
+    };
+
+    context.m_pInterface = &interface;
+
+    genTangSpaceDefault(&context);
 }
 
 std::vector<std::shared_ptr<Mesh>> Loader::details::processMeshes(std::shared_ptr<tinygltf::Model> gltfScene, const std::vector<std::shared_ptr<Material>>& materials)
@@ -468,6 +547,20 @@ std::unique_ptr<float[]> Loader::details::getDenormalizedShortAccessorData(uint1
     }
 
     return data;
+}
+
+Attribute* Loader::details::getAttributeByType(Primitive* primitive, AttributeType type)
+{
+    auto iterator = std::find_if(primitive->attributes.begin(), primitive->attributes.end(), [&](const Attribute& attribute) { return attribute.attributeType == type; });
+
+    if (iterator != primitive->attributes.end())
+    {
+        return &*iterator;
+    }
+    else
+    {
+        return nullptr;
+    }
 }
 
 AttributeType Loader::details::convertAttributeName(const std::string& attributeName)

@@ -48,7 +48,7 @@ namespace SVMV
             void processAndInsertTextureProperty(const std::vector<std::shared_ptr<Texture>>& textures, std::shared_ptr<Material> targetMaterial, const std::string& name, const tinygltf::NormalTextureInfo& gltfTextureInfo);
             void processAndInsertTextureProperty(const std::vector<std::shared_ptr<Texture>>& textures, std::shared_ptr<Material> targetMaterial, const std::string& name, const tinygltf::OcclusionTextureInfo& gltfTextureInfo);
 
-            void generateTangents(std::shared_ptr<Mesh> mesh);
+            void generateTangents(std::shared_ptr<Primitive> primitive);
 
             std::vector<std::shared_ptr<Mesh>> processMeshes(std::shared_ptr<tinygltf::Model> gltfScene, const std::vector<std::shared_ptr<Material>>& materials);
             std::vector<std::shared_ptr<Primitive>> processPrimitives(std::shared_ptr<tinygltf::Model> gltfScene, const tinygltf::Mesh& gltfMesh, const std::vector<std::shared_ptr<Material>>& materials);
@@ -63,6 +63,8 @@ namespace SVMV
 
             std::unique_ptr<float[]> getDenormalizedByteAccessorData(uint8_t* source, size_t count, size_t componentCount, size_t byteStride);
             std::unique_ptr<float[]> getDenormalizedShortAccessorData(uint16_t* source, size_t count, size_t componentCount, size_t byteStride);
+
+            Attribute* getAttributeByType(Primitive* primitive, AttributeType type);
 
             AttributeType convertAttributeName(const std::string& attributeName);
         }
