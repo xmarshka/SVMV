@@ -34,16 +34,21 @@ layout(push_constant) uniform PushConstants {
 
 layout(location = 0) out vec4 out_col0;
 layout(location = 1) out vec2 out_uv0;
-layout(location = 2) out vec3 out_ws_P;
-layout(location = 3) out vec3 out_ws_Ng;
+layout(location = 2) out vec3 out_ws_Ng;
+layout(location = 3) out vec3 out_ws_P;
 layout(location = 4) out vec3 out_ws_cam_pos;
-layout(location = 5) out mat3 out_ts_mat;
+
+layout(location = 5) out vec3 out_ts_P;
+layout(location = 6) out vec3 out_ts_cam_pos;
+layout(location = 7) out vec3 out_ts_light_pos;
 
 void main() {
-    vec3 ls_P = vec3(pc.P_buf.data[gl_VertexIndex * 3 + 0], pc.P_buf.data[gl_VertexIndex * 3 + 1], pc.P_buf.data[gl_VertexIndex * 3 + 2]);
+    vec3 light_pos = vec3(3.0, 0.0, 1.0);
 
-    gl_Position = cam_mats.view_proj_mat * pc.model_mat_buf.data[0] * vec4(ls_P, 1.0);
-    out_ws_P = vec3(pc.model_mat_buf.data[0] * vec4(ls_P, 1.0));
+    vec3 ms_P = vec3(pc.P_buf.data[gl_VertexIndex * 3 + 0], pc.P_buf.data[gl_VertexIndex * 3 + 1], pc.P_buf.data[gl_VertexIndex * 3 + 2]);
+
+    gl_Position = cam_mats.view_proj_mat * pc.model_mat_buf.data[0] * vec4(ms_P, 1.0);
+    out_ws_P = vec3(pc.model_mat_buf.data[0] * vec4(ms_P, 1.0));
     out_ws_cam_pos = cam_mats.ws_pos.xyz;
 
     if (uvec2(pc.uv0_buf) != uvec2(0)) {
@@ -63,7 +68,11 @@ void main() {
 
             vec3 ws_B = normalize(cross(ws_T, ws_Ng) * pc.T_buf.data[gl_VertexIndex * 4 + 3]);
 
-            out_ts_mat = mat3(ws_T, ws_B, ws_Ng);
+            mat3 ts_mat = transpose(mat3(ws_T, ws_B, ws_Ng));
+
+            out_ts_P = ts_mat * vec3(pc.model_mat_buf.data[0] * vec4(ms_P, 1.0));
+            out_ts_cam_pos = ts_mat * cam_mats.ws_pos.xyz;
+            out_ts_light_pos = ts_mat * light_pos;
         }
     }
 

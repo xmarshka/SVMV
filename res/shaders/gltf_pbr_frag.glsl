@@ -8,11 +8,13 @@ layout(set = 1, binding = 3) uniform sampler2D metal_rough_tx;
 
 layout(location = 0) in vec4 col0;
 layout(location = 1) in vec2 uv0;
-layout(location = 2) in vec3 ws_P;
-layout(location = 3) in vec3 ws_Ng;
+layout(location = 2) in vec3 ws_Ng;
+layout(location = 3) in vec3 ws_P;
 layout(location = 4) in vec3 ws_cam_pos;
 //layout(location = 4) in vec3 ts_cam_pos;
-layout(location = 5) in mat3 ts_mat;
+layout(location = 5) in vec3 ts_P;
+layout(location = 6) in vec3 ts_cam_pos;
+layout(location = 7) in vec3 ts_light_pos;
 
 layout(location = 0) out vec4 out_col;
 
@@ -63,19 +65,19 @@ vec3 brdf_d_lambert(in vec3 base_col) {
 }
 
 void main() {
-    //vec3 ws_N = normalize(ts_mat * (texture(normal_tx, uv0).rgb * 2.0 - 1.0));
-    vec3 ws_N = ws_Ng;
+    vec3 ts_N = normalize(texture(normal_tx, uv0).rgb * 2.0 - 1.0);
+    //vec3 ts_N = ws_Ng;
 
     vec3 orm = texture(metal_rough_tx, uv0).rgb;
 
-    vec3 light_pos = vec3(2.0, 0.0, 1.0);
+    //vec3 light_pos = vec3(2.0, 0.0, 1.0);
     vec3 light_col = vec3(3.0, 3.0, 3.0);
 
-    float light_distance = length(light_pos - ws_P);
+    float light_distance = length(ts_light_pos - ts_P);
 
-    vec3 ws_L = normalize(light_pos);
-    vec3 ws_V = normalize(ws_cam_pos - ws_P);
-    vec3 ws_H = normalize(normalize(ws_L) + normalize(ws_V));
+    vec3 ts_L = normalize(ts_light_pos - ts_P);
+    vec3 ts_V = normalize(ts_cam_pos - ts_P);
+    vec3 ts_H = normalize(normalize(ts_L) + normalize(ts_V));
 
     float roughness = orm.g;
     float metallicity = orm.b;
@@ -83,19 +85,21 @@ void main() {
 
     float ambient_factor = 0.01;
 
-    vec3 radiance = light_col; // / (light_distance * light_distance + 0.001);
+    vec3 radiance = light_col / (light_distance * light_distance + 0.001);
 
     vec3 diffuse = brdf_d_lambert(base_col);
-    vec3 specular = brdf_s_cook_torrance(ws_L, ws_V, ws_N, ws_H, roughness * roughness);
+    vec3 specular = brdf_s_cook_torrance(ts_L, ts_V, ts_N, ts_H, roughness * roughness);
 
-    float f_s_dielectric = f_schlick_dielectric(ws_H, ws_V, 0.04);
+    float f_s_dielectric = f_schlick_dielectric(ts_H, ts_V, 0.04);
     float f_d_dielectric = 1 - f_s_dielectric;
-    vec3 f_s_metallic = f_schlick_metal(ws_H, ws_V, base_col);
+    vec3 f_s_metallic = f_schlick_metal(ts_H, ts_V, base_col);
 
     vec3 col_dielectric = f_d_dielectric * diffuse + f_s_dielectric * specular;
     vec3 col_metallic = f_s_metallic * specular;
 
     vec3 final_col = mix(col_dielectric, col_metallic, metallicity);
 
-    out_col = vec4(ambient_factor * base_col + final_col * radiance * max(dot(ws_N, ws_L), 0.0), 1.0);
+    out_col = vec4(ambient_factor * base_col + final_col * radiance * max(dot(ts_N, ts_L), 0.0), 1.0);
+
+    //out_col = vec4(1.0, 1.0, 1.0, 1.0);
 }

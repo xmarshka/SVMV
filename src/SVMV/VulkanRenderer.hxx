@@ -5,6 +5,10 @@
 #include <VkBootstrap.h>
 #include <shaderc/shaderc.hpp>
 
+#include <imgui/imgui.h>
+#include <imgui/imgui_impl_glfw.h>
+#include <imgui/imgui_impl_vulkan.h>
+
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
@@ -58,7 +62,7 @@ namespace SVMV
         [[nodiscard]] const vk::Device getDevice() const noexcept;
 
     private:
-        void recordDrawCommands(int activeFrame, const vk::raii::Framebuffer& framebuffer);
+        void recordDrawCommands(int activeFrame, const vk::raii::Framebuffer& framebuffer, const vk::raii::Framebuffer& imguiFramebuffer);
 
         void preprocessScene(std::shared_ptr<Scene> scene);
         void generateDrawablesFromScene(std::shared_ptr<Node> node, glm::mat4 baseTransform);
@@ -100,7 +104,13 @@ namespace SVMV
         vk::raii::Queue _presentQueue               { nullptr };
         int _presentQueueIndex                      { 0 };
 
-        vk::raii::CommandBuffers _drawCommandBuffers{ nullptr };
+        vk::raii::CommandBuffers _drawCommandBuffers    { nullptr };
+
+        vk::raii::RenderPass _imguiRenderPass               { nullptr };
+        vk::raii::CommandPool _imguiCommandPool             { nullptr }; // unused?
+        vk::raii::CommandBuffers _imguiCommandBuffers       { nullptr }; // unused?
+        vk::raii::DescriptorPool _imguiDescriptorPool       { nullptr };
+        std::vector<vk::raii::Framebuffer> _imguiFramebuffers;
 
         VulkanUtilities::DescriptorAllocator _descriptorAllocator;
         VulkanDescriptorWriter _descriptorWriter;

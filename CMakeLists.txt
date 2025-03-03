@@ -7,6 +7,8 @@ project(SVMV DESCRIPTION "Simple glTF model viewer" LANGUAGES CXX)
 set(HEADER_DIR ${CMAKE_CURRENT_LIST_DIR}/src/${PROJECT_NAME})
 set(SRC_DIR ${CMAKE_CURRENT_LIST_DIR}/src/${PROJECT_NAME})
 
+set(THIRDPARTY_DIR ${CMAKE_CURRENT_LIST_DIR}/thirdparty)
+
 set(SVMV_INCLUDES
 	${SRC_DIR}/Application.hxx
 	${SRC_DIR}/GLFWwindowWrapper.hxx
@@ -34,7 +36,17 @@ set(SVMV_INCLUDES
 	${SRC_DIR}/Texture.hxx
 	${SRC_DIR}/Input.hxx
 	${SRC_DIR}/InputHandler.hxx
-	${SRC_DIR}/CameraController.hxx)
+	${SRC_DIR}/CameraController.hxx
+	${THIRDPARTY_DIR}/MikkTSpace/mikktspace.h
+	${THIRDPARTY_DIR}/imgui/imconfig.h
+	${THIRDPARTY_DIR}/imgui/imgui.h
+	${THIRDPARTY_DIR}/imgui/imgui_impl_glfw.h
+	${THIRDPARTY_DIR}/imgui/imgui_impl_vulkan.h
+	${THIRDPARTY_DIR}/imgui/imgui_internal.h
+	${THIRDPARTY_DIR}/imgui/imgui_stdlib.h
+	${THIRDPARTY_DIR}/imgui/imstb_rectpack.h
+	${THIRDPARTY_DIR}/imgui/imstb_textedit.h
+	${THIRDPARTY_DIR}/imgui/imstb_truetype.h)
 
 set(SVMV_SOURCES
 	${SRC_DIR}/main.cxx
@@ -52,7 +64,16 @@ set(SVMV_SOURCES
 	${SRC_DIR}/Loader.cxx
 	${SRC_DIR}/Input.cxx
 	${SRC_DIR}/InputHandler.cxx
-	${SRC_DIR}/CameraController.cxx)
+	${SRC_DIR}/CameraController.cxx
+	${THIRDPARTY_DIR}/MikkTSpace/mikktspace.c
+	${THIRDPARTY_DIR}/imgui/imgui.cpp
+	${THIRDPARTY_DIR}/imgui/imgui_demo.cpp
+	${THIRDPARTY_DIR}/imgui/imgui_draw.cpp
+	${THIRDPARTY_DIR}/imgui/imgui_impl_glfw.cpp
+	${THIRDPARTY_DIR}/imgui/imgui_impl_vulkan.cpp
+	${THIRDPARTY_DIR}/imgui/imgui_stdlib.cpp
+	${THIRDPARTY_DIR}/imgui/imgui_tables.cpp
+	${THIRDPARTY_DIR}/imgui/imgui_widgets.cpp)
 
 find_package(Vulkan REQUIRED COMPONENTS shaderc_combined)
 find_package(VulkanMemoryAllocator CONFIG REQUIRED)
@@ -66,7 +87,8 @@ add_executable(${PROJECT_NAME}
 	${SVMV_SOURCES})
 
 target_include_directories(${PROJECT_NAME}
-	PUBLIC ${CMAKE_CURRENT_LIST_DIR}/src)
+	PUBLIC ${CMAKE_CURRENT_LIST_DIR}/src
+	PUBLIC ${CMAKE_CURRENT_LIST_DIR}/thirdparty)
 
 target_link_libraries(${PROJECT_NAME}
 	PUBLIC Vulkan::Vulkan

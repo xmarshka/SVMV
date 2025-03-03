@@ -49,6 +49,89 @@ VulkanRenderer::VulkanRenderer(int width, int height, const std::string& name, u
     createGlobalDescriptorSets();
 
     setCamera(glm::vec3(0.9f, 1.1f, 3.0f), glm::vec3(-0.2f, -0.2f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f), 50.0f);
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // IF using Docking Branch
+
+    ImGui::StyleColorsDark();
+
+    ImGui_ImplGlfw_InitForVulkan(window.getWindow(), true);
+
+    // TODO: TEMP: INITIALIZE IMGUI VULKAN OBJECTS
+
+    vk::DescriptorPoolSize poolSizes[] = {
+        { vk::DescriptorType::eSampler, 1000 },
+        { vk::DescriptorType::eCombinedImageSampler, 1000 },
+        { vk::DescriptorType::eSampledImage, 1000 },
+        { vk::DescriptorType::eStorageImage, 1000 },
+        { vk::DescriptorType::eUniformTexelBuffer, 1000 },
+        { vk::DescriptorType::eStorageTexelBuffer, 1000 },
+        { vk::DescriptorType::eUniformBuffer, 1000 },
+        { vk::DescriptorType::eStorageBuffer, 1000 },
+        { vk::DescriptorType::eUniformBufferDynamic, 1000 },
+        { vk::DescriptorType::eStorageBufferDynamic, 1000 },
+        { vk::DescriptorType::eInputAttachment, 1000 }
+    };
+
+    vk::DescriptorPoolCreateInfo info;
+    info.setMaxSets(4096);
+    info.setPoolSizes(poolSizes);
+    info.setFlags(vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet);
+
+    _imguiDescriptorPool = vk::raii::DescriptorPool(_device, info);
+
+    vk::AttachmentDescription attachmentDescription;
+    attachmentDescription.setFormat(_swapchainFormat);
+    attachmentDescription.setSamples(vk::SampleCountFlagBits::e1);
+    attachmentDescription.setLoadOp(vk::AttachmentLoadOp::eLoad);
+    attachmentDescription.setStoreOp(vk::AttachmentStoreOp::eStore);
+    attachmentDescription.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare);
+    attachmentDescription.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare);
+    attachmentDescription.setInitialLayout(vk::ImageLayout::eColorAttachmentOptimal);
+    attachmentDescription.setFinalLayout(vk::ImageLayout::ePresentSrcKHR);
+
+    vk::AttachmentReference attachmentReference;
+    attachmentReference.setAttachment(0);
+    attachmentReference.setLayout(vk::ImageLayout::eColorAttachmentOptimal);
+
+    vk::SubpassDescription subpassDescription;
+    subpassDescription.setPipelineBindPoint(vk::PipelineBindPoint::eGraphics);
+    subpassDescription.setColorAttachments(attachmentReference);
+
+    vk::SubpassDependency subpassDependency;
+    subpassDependency.setSrcSubpass(vk::SubpassExternal);
+    subpassDependency.setSrcStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
+    subpassDependency.setDstStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
+    subpassDependency.setDstAccessMask(vk::AccessFlagBits::eColorAttachmentWrite);
+
+    vk::RenderPassCreateInfo renderPassCreateInfo;
+    renderPassCreateInfo.setAttachments(attachmentDescription);
+    renderPassCreateInfo.setSubpasses(subpassDescription);
+    renderPassCreateInfo.setDependencies(subpassDependency);
+
+    _imguiRenderPass = vk::raii::RenderPass(_device, renderPassCreateInfo);
+
+    ImGui_ImplVulkan_InitInfo init_info = {};
+    init_info.Instance = *_instance;
+    init_info.PhysicalDevice = *_physicalDevice;
+    init_info.RenderPass = *_imguiRenderPass;
+    init_info.Device = *_device;
+    init_info.QueueFamily = _graphicsQueueIndex;
+    init_info.Queue = *_graphicsQueue;
+    init_info.DescriptorPool = *_imguiDescriptorPool;
+    init_info.Subpass = 0;
+    init_info.MinImageCount = framesInFlight;
+    init_info.ImageCount = framesInFlight;
+    init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+    init_info.CheckVkResultFn = [](VkResult result) { if (result != VK_SUCCESS) throw std::runtime_error("imgui: error"); };
+    ImGui_ImplVulkan_Init(&init_info);
+
+    // ImGui_ImplVulkan_CreateFontsTexture(); // ?????
+
+    _imguiFramebuffers = _initilization.createFramebuffers(_device, _imguiRenderPass, _imageViews);
 }
 
 void VulkanRenderer::draw()
@@ -96,7 +179,7 @@ void VulkanRenderer::draw()
 
     // Record draw command buffers
     _drawCommandBuffers[_activeFrame].reset();
-    recordDrawCommands(_activeFrame, _framebuffers[acquireResult.second]);
+    recordDrawCommands(_activeFrame, _framebuffers[acquireResult.second], _imguiFramebuffers[acquireResult.second]);
 
     // Submit command buffer to graphics queue for execution
     vk::SubmitInfo submitInfo;
@@ -166,7 +249,7 @@ const vk::Device VulkanRenderer::getDevice() const noexcept
     return (*_device);
 }
 
-void VulkanRenderer::recordDrawCommands(int activeFrame, const vk::raii::Framebuffer& framebuffer)
+void VulkanRenderer::recordDrawCommands(int activeFrame, const vk::raii::Framebuffer& framebuffer, const vk::raii::Framebuffer& imguiFramebuffer)
 {
     ShaderStructures::PushConstants constants;
 
@@ -216,6 +299,39 @@ void VulkanRenderer::recordDrawCommands(int activeFrame, const vk::raii::Framebu
     }
 
     _drawCommandBuffers[activeFrame].endRenderPass();
+
+    // imgui render pass
+
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
+    ImGui::Begin("Another Window");   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
+    ImGui::Text("Hello from another window!");
+    if (ImGui::Button("Close Me"))
+        bool show_another_window = false;
+    ImGui::End();
+
+    ImGuiIO& io = ImGui::GetIO();
+    ImGui::Render();
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+        ImGui::UpdatePlatformWindows();
+        ImGui::RenderPlatformWindowsDefault();
+    }
+
+    vk::RenderPassBeginInfo imguiRenderPassBeginInfo;
+    imguiRenderPassBeginInfo.setRenderPass(_imguiRenderPass);
+    imguiRenderPassBeginInfo.setFramebuffer(imguiFramebuffer);
+    imguiRenderPassBeginInfo.setRenderArea(vk::Rect2D(vk::Offset2D(0, 0), _swapchainExtent));
+    vk::ClearValue imguiClearValues[2] = { vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f), vk::ClearDepthStencilValue(1.0f, 0.0f) };
+    imguiRenderPassBeginInfo.setClearValues(imguiClearValues);
+
+    _drawCommandBuffers[activeFrame].beginRenderPass(imguiRenderPassBeginInfo, vk::SubpassContents::eInline);
+
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), *_drawCommandBuffers[activeFrame]);
+
+    _drawCommandBuffers[activeFrame].endRenderPass();
+
     _drawCommandBuffers[activeFrame].end();
 }
 
@@ -416,7 +532,7 @@ void VulkanRenderer::createRenderPass()
     colorAttachmentDescription.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare);
     colorAttachmentDescription.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare);
     colorAttachmentDescription.setInitialLayout(vk::ImageLayout::eUndefined);
-    colorAttachmentDescription.setFinalLayout(vk::ImageLayout::ePresentSrcKHR);
+    colorAttachmentDescription.setFinalLayout(vk::ImageLayout::eColorAttachmentOptimal); // for the imgui render pass
 
     vk::AttachmentDescription depthAttachmentDescription;
     depthAttachmentDescription.setFormat(vk::Format::eD32Sfloat);

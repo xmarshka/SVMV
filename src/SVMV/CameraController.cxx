@@ -46,18 +46,18 @@ void CameraControllerNoclip::Process(float deltaTime)
             _position += glm::normalize(_toMove) * _speed * deltaTime;
         }
 
-        _pitch += _toPitch * _sensitivity;
-        _yaw += _toYaw * _sensitivity;
+        _pitch += _toPitch * _sensitivity * deltaTime;
+        _yaw += _toYaw * _sensitivity * deltaTime;
 
         _pitch = std::min(std::max(_pitch, -85.0f), 85.0f);
 
-        _front.x = std::cos(glm::radians(_yaw)) * std::cos(glm::radians(_pitch));
+        /*_front.x = std::cos(glm::radians(_yaw)) * std::cos(glm::radians(_pitch));
         _front.y = std::sin(glm::radians(_pitch));
         _front.z = std::sin(glm::radians(_yaw)) * std::cos(glm::radians(_pitch));
 
-        _front = glm::normalize(_front);
+        _front = glm::normalize(_front);*/
 
-        //_front = glm::normalize(glm::vec3(0.0f, 0.0f, 0.0f) - _position);
+        _front = glm::normalize(glm::vec3(0.0f, 0.0f, 0.0f) - _position);
 
         _toMove = glm::vec3(0.0f, 0.0f, 0.0f);
         _toPitch = 0.0f;
@@ -121,7 +121,7 @@ void CameraControllerNoclip::InputEvent(std::shared_ptr<Input::Event> inputEvent
             Input::MouseMovementEvent* mouseMovementEvent = reinterpret_cast<Input::MouseMovementEvent*>(inputEvent.get());
 
             _toYaw += mouseMovementEvent->mouseDelta.x;
-            _toPitch -= mouseMovementEvent->mouseDelta.y;
+            _toPitch += mouseMovementEvent->mouseDelta.y * -1.0f;
         }
     }
 }

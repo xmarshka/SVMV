@@ -71,6 +71,7 @@ vk::raii::SwapchainKHR VulkanInitilization::createSwapchain(const vk::raii::Devi
     vkb::SwapchainBuilder builder(_bootstrapDevice, *surface);
 
     // TODO: set buffering amount
+    builder.set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR);
 
     /* "By default, the swapchain will use the VK_FORMAT_B8G8R8A8_SRGB or VK_FORMAT_R8G8B8A8_SRGB image format
     with the color space VK_COLOR_SPACE_SRGB_NONLINEAR_KHR.The present mode will default to VK_PRESENT_MODE_MAILBOX_KHR

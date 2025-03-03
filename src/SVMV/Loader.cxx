@@ -185,6 +185,14 @@ void Loader::details::processAndInsertTextureProperty(const std::vector<std::sha
     }
 }
 
+void Loader::details::generateTangents(std::shared_ptr<Mesh> mesh)
+{
+    // TODO: reinterpret vector for appropriate types (floats), create lambdas with reference capture, run generation
+
+    SMikkTSpaceInterface interface = {};
+    interface.m_getNumVerticesOfFace = [](const SMikkTSpaceContext* context, int face) { return 3; };
+}
+
 std::vector<std::shared_ptr<Mesh>> Loader::details::processMeshes(std::shared_ptr<tinygltf::Model> gltfScene, const std::vector<std::shared_ptr<Material>>& materials)
 {
     std::vector<std::shared_ptr<Mesh>> meshes;
