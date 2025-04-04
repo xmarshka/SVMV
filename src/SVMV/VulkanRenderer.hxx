@@ -9,6 +9,8 @@
 #include <imgui/imgui_impl_glfw.h>
 #include <imgui/imgui_impl_vulkan.h>
 
+#include <ImGuiFileDialog/ImGuiFileDialog.h>
+
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
@@ -47,7 +49,7 @@ namespace SVMV
         VulkanRenderer(VulkanRenderer&&) = delete;
         VulkanRenderer& operator=(VulkanRenderer&&) = delete;
 
-        ~VulkanRenderer() = default;
+        ~VulkanRenderer();
 
         void draw();
 
@@ -103,6 +105,8 @@ namespace SVMV
         int _graphicsQueueIndex                     { 0 };
         vk::raii::Queue _presentQueue               { nullptr };
         int _presentQueueIndex                      { 0 };
+        vk::raii::Queue _computeQueue               { nullptr };
+        int _computeQueueIndex                      { 0 };
 
         vk::raii::CommandBuffers _drawCommandBuffers    { nullptr };
 

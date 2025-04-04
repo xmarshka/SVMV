@@ -26,6 +26,10 @@ VulkanRenderer::VulkanRenderer(int width, int height, const std::string& name, u
     _presentQueue = std::move(presentQueuePair.first);
     _presentQueueIndex = presentQueuePair.second;
 
+    auto computeQueuePair = _initilization.createQueue(_device, vkb::QueueType::compute);
+    _computeQueue = std::move(computeQueuePair.first);
+    _computeQueueIndex = computeQueuePair.second;
+
     _descriptorAllocator = VulkanUtilities::DescriptorAllocator(&_device);
     _descriptorWriter = VulkanDescriptorWriter(&_device);
     _vmaAllocator = VulkanUtilities::VmaAllocatorWrapper(_instance, _physicalDevice, _device);
@@ -47,8 +51,6 @@ VulkanRenderer::VulkanRenderer(int width, int height, const std::string& name, u
 
     _drawCommandBuffers = vk::raii::CommandBuffers(_device, commandBufferAllocateInfo);
     createGlobalDescriptorSets();
-
-    setCamera(glm::vec3(0.9f, 1.1f, 3.0f), glm::vec3(-0.2f, -0.2f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f), 50.0f);
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -134,6 +136,13 @@ VulkanRenderer::VulkanRenderer(int width, int height, const std::string& name, u
     _imguiFramebuffers = _initilization.createFramebuffers(_device, _imguiRenderPass, _imageViews);
 }
 
+VulkanRenderer::~VulkanRenderer()
+{
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+}
+
 void VulkanRenderer::draw()
 {
     // Wait for this frame index's render to be finished
@@ -217,6 +226,8 @@ void VulkanRenderer::draw()
 
 void VulkanRenderer::loadScene(std::shared_ptr<Scene> scene)
 {
+    _scene = VulkanScene();
+
     preprocessScene(scene);
     generateDrawablesFromScene(scene->root, scene->root->transform);
     copyStagingBuffersToGPUBuffers();
@@ -306,11 +317,23 @@ void VulkanRenderer::recordDrawCommands(int activeFrame, const vk::raii::Framebu
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    ImGui::Begin("Another Window");   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
-    ImGui::Text("Hello from another window!");
-    if (ImGui::Button("Close Me"))
-        bool show_another_window = false;
-    ImGui::End();
+    if (ImGui::Button("Open File Dialog")) {
+        IGFD::FileDialogConfig config;
+        config.path = ".";
+        ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".glb,.gltf", config);
+    }
+    // display
+    if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey")) {
+        if (ImGuiFileDialog::Instance()->IsOk()) { // action if OK
+            std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
+            std::string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
+            // action
+            std::cout << filePathName << "\t" << filePath << std::endl;
+        }
+
+        // close
+        ImGuiFileDialog::Instance()->Close();
+    }
 
     ImGuiIO& io = ImGui::GetIO();
     ImGui::Render();

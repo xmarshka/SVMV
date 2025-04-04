@@ -2,9 +2,16 @@
 
 #define PI 3.1415926538
 
+layout(set = 1, binding = 0) uniform MaterialUniformParameters {
+    vec4 baseColorFactor;
+    vec4 roughnessMetallicFactors;
+} mat_param_buf;
+
 layout(set = 1, binding = 1) uniform sampler2D base_col_tx;
 layout(set = 1, binding = 2) uniform sampler2D normal_tx;
 layout(set = 1, binding = 3) uniform sampler2D metal_rough_tx;
+layout(set = 1, binding = 4) uniform sampler2D occlusion_tx;
+layout(set = 1, binding = 5) uniform sampler2D emissive_tx;
 
 layout(location = 0) in vec4 col0;
 layout(location = 1) in vec2 uv0;
@@ -17,11 +24,6 @@ layout(location = 6) in vec3 ts_cam_pos;
 layout(location = 7) in vec3 ts_light_pos;
 
 layout(location = 0) out vec4 out_col;
-
-vec3 conductor_fresnel(in vec3 f_0, in vec3 specular)
-{
-    return vec3(0.0);
-}
 
 float d_trowbridge_reitz(in vec3 N, in vec3 H, in float alpha) {
     float alpha_sq = alpha * alpha;
@@ -38,8 +40,8 @@ float g_smith_t_r(in vec3 A, in vec3 N, in vec3 H, in float alpha) {
     float alpha_sq = alpha * alpha;
     float dot_N_A = max(dot(N, A), 0.0);
 
-    float numerator = 2 * dot_N_A;
-    float denominator = dot_N_A + sqrt(alpha_sq + (1 - alpha_sq) * dot_N_A * dot_N_A);
+    float numerator = 2.0 * dot_N_A;
+    float denominator = dot_N_A + sqrt(alpha_sq + (1.0 - alpha_sq) * dot_N_A * dot_N_A);
 
     return numerator / denominator;
 }
@@ -71,19 +73,20 @@ void main() {
     vec3 orm = texture(metal_rough_tx, uv0).rgb;
 
     //vec3 light_pos = vec3(2.0, 0.0, 1.0);
-    vec3 light_col = vec3(3.0, 3.0, 3.0);
+    vec3 light_col = vec3(1.0, 1.0, 1.0) * 0.5;
 
     float light_distance = length(ts_light_pos - ts_P);
 
+    //vec3 ts_L = normalize(ts_light_pos);
     vec3 ts_L = normalize(ts_light_pos - ts_P);
     vec3 ts_V = normalize(ts_cam_pos - ts_P);
-    vec3 ts_H = normalize(normalize(ts_L) + normalize(ts_V));
+    vec3 ts_H = normalize(ts_L + ts_V);
 
     float roughness = orm.g;
     float metallicity = orm.b;
     vec3 base_col = vec3(texture(base_col_tx, uv0));
 
-    float ambient_factor = 0.01;
+    float ambient_factor = 0.01 * (orm.r);
 
     vec3 radiance = light_col / (light_distance * light_distance + 0.001);
 
@@ -99,7 +102,9 @@ void main() {
 
     vec3 final_col = mix(col_dielectric, col_metallic, metallicity);
 
-    out_col = vec4(ambient_factor * base_col + final_col * radiance * max(dot(ts_N, ts_L), 0.0), 1.0);
+    vec3 emissive_col = vec3(0.0, 0.0, 0.0); // texture(emissive_tx, uv0).rgb;
 
-    //out_col = vec4(1.0, 1.0, 1.0, 1.0);
+    out_col = vec4(ambient_factor * base_col + final_col * radiance * max(dot(ts_N, ts_L), 0.0) + emissive_col, 1.0);
+
+    //out_col = vec4(orm.b, orm.b, orm.b, 1.0);
 }

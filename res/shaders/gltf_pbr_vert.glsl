@@ -9,11 +9,6 @@ layout(set = 0, binding = 0) uniform CameraMatrices {
     vec4 ws_pos;
 } cam_mats;
 
-layout(set = 1, binding = 0) uniform MaterialUniformParameters {
-    vec4 baseColorFactor;
-    vec4 roughnessMetallicFactors;
-} mat_param_buf;
-
 layout(buffer_reference, std430) readonly buffer PositionsBuffer { float data[]; }; // vec3s as float array
 layout(buffer_reference, std430) readonly buffer NormalsBuffer { float data[]; }; // vec3s as float array
 layout(buffer_reference, std430) readonly buffer TangentsBuffer { float data[]; }; // vec4s as float array
@@ -43,7 +38,7 @@ layout(location = 6) out vec3 out_ts_cam_pos;
 layout(location = 7) out vec3 out_ts_light_pos;
 
 void main() {
-    vec3 light_pos = vec3(3.0, 0.0, 1.0);
+    vec3 light_pos = vec3(1.0, 0.2, -0.2);
 
     vec3 ms_P = vec3(pc.P_buf.data[gl_VertexIndex * 3 + 0], pc.P_buf.data[gl_VertexIndex * 3 + 1], pc.P_buf.data[gl_VertexIndex * 3 + 2]);
 

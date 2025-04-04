@@ -20,6 +20,7 @@ set(SVMV_INCLUDES
 	${SRC_DIR}/VulkanDrawable.hxx
 	${SRC_DIR}/VulkanBuffer.hxx
 	${SRC_DIR}/VulkanImage.hxx
+	${SRC_DIR}/VulkanIBL.hxx
 	${SRC_DIR}/VulkanMaterial.hxx
 	${SRC_DIR}/VulkanShaderStructures.hxx
 	${SRC_DIR}/VulkanGLTFPBRMaterial.hxx
@@ -46,7 +47,9 @@ set(SVMV_INCLUDES
 	${THIRDPARTY_DIR}/imgui/imgui_stdlib.h
 	${THIRDPARTY_DIR}/imgui/imstb_rectpack.h
 	${THIRDPARTY_DIR}/imgui/imstb_textedit.h
-	${THIRDPARTY_DIR}/imgui/imstb_truetype.h)
+	${THIRDPARTY_DIR}/imgui/imstb_truetype.h
+	${THIRDPARTY_DIR}/ImGuiFileDialog/ImGuiFileDialog.h
+	${THIRDPARTY_DIR}/stb/stb_image.h)
 
 set(SVMV_SOURCES
 	${SRC_DIR}/main.cxx
@@ -58,6 +61,7 @@ set(SVMV_SOURCES
 	${SRC_DIR}/VulkanShader.cxx
 	${SRC_DIR}/VulkanBuffer.cxx
 	${SRC_DIR}/VulkanImage.cxx
+	${SRC_DIR}/VulkanIBL.cxx
 	${SRC_DIR}/VulkanGLTFPBRMaterial.cxx
 	${SRC_DIR}/VulkanDescriptorWriter.cxx
 	${SRC_DIR}/VulkanUtilities.cxx
@@ -73,7 +77,8 @@ set(SVMV_SOURCES
 	${THIRDPARTY_DIR}/imgui/imgui_impl_vulkan.cpp
 	${THIRDPARTY_DIR}/imgui/imgui_stdlib.cpp
 	${THIRDPARTY_DIR}/imgui/imgui_tables.cpp
-	${THIRDPARTY_DIR}/imgui/imgui_widgets.cpp)
+	${THIRDPARTY_DIR}/imgui/imgui_widgets.cpp
+	${THIRDPARTY_DIR}/ImGuiFileDialog/ImGuiFileDialog.cpp)
 
 find_package(Vulkan REQUIRED COMPONENTS shaderc_combined)
 find_package(VulkanMemoryAllocator CONFIG REQUIRED)

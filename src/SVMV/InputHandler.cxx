@@ -64,6 +64,11 @@ void InputHandler::registerController(Controller* controller)
     _controllers.push_back(controller);
 }
 
+void InputHandler::ignoreFirstMouseMovement()
+{
+    _ignoreFirstMouseMovement = true;
+}
+
 void InputHandler::glfwKeyCallback(int key, int scancode, int action, int mods)
 {
     switch (key)
@@ -165,10 +170,20 @@ void InputHandler::glfwKeyCallback(int key, int scancode, int action, int mods)
 
 void InputHandler::glfwCursorPositionCallback(double xpos, double ypos)
 {
-    Input::MouseDelta mouseDelta(xpos - _previousMouseDelta.x, ypos - _previousMouseDelta.y);
+    if (_ignoreFirstMouseMovement)
+    {
+        _ignoreFirstMouseMovement = false;
+
+        _previousMousePosition.x = xpos;
+        _previousMousePosition.y = ypos;
+
+        return;
+    }
+
+    Input::MouseDelta mouseDelta(xpos - _previousMousePosition.x, ypos - _previousMousePosition.y);
 
     _eventQueue.push(std::make_shared<Input::MouseMovementEvent>(mouseDelta));
 
-    _previousMouseDelta.x = xpos;
-    _previousMouseDelta.y = ypos;
+    _previousMousePosition.x = xpos;
+    _previousMousePosition.y = ypos;
 }

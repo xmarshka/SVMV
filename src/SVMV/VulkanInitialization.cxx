@@ -104,7 +104,7 @@ vk::raii::CommandPool VulkanInitilization::createCommandPool(const vk::raii::Dev
 
 std::pair<vk::raii::Queue, unsigned> VulkanInitilization::createQueue(const vk::raii::Device& device, vkb::QueueType queueType)
 {
-    return std::pair<vk::raii::Queue, unsigned>(vk::raii::Queue(device, _bootstrapDevice.get_queue(queueType).value()), _bootstrapDevice.get_queue_index(vkb::QueueType::graphics).value());
+    return std::pair<vk::raii::Queue, unsigned>(vk::raii::Queue(device, _bootstrapDevice.get_queue(queueType).value()), _bootstrapDevice.get_queue_index(queueType).value());
 }
 
 std::vector<vk::raii::ImageView> VulkanInitilization::createSwapchainImageViews(const vk::raii::Device& device)

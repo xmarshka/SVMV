@@ -13,7 +13,7 @@ namespace SVMV
     public:
         enum class ShaderType
         {
-            UNDEFINED, VERTEX, FRAGMENT
+            UNDEFINED, VERTEX, FRAGMENT, COMPUTE
         };
 
     public:

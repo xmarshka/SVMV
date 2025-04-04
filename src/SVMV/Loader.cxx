@@ -195,15 +195,13 @@ void Loader::details::generateTangents(std::shared_ptr<Primitive> primitive)
     tangentAttribute.size = tangentAttribute.count * tangentAttribute.componentCount * sizeof(float);
     tangentAttribute.elements = std::make_unique_for_overwrite<std::byte[]>(tangentAttribute.size);
 
-    primitive->attributes.push_back(tangentAttribute);
-
     SMikkTSpaceContext context = {};
     context.m_pUserData = primitive.get();
 
     SMikkTSpaceInterface interface = {};
     interface.m_getNumFaces = [](const SMikkTSpaceContext* context) -> int
     {
-        return reinterpret_cast<Primitive*>(context->m_pUserData)->indices.size() / 3;
+        return ((Primitive*)(context->m_pUserData))->indices.size() / 3;
     };
 
     interface.m_getNumVerticesOfFace = [](const SMikkTSpaceContext* context, int face) -> int
@@ -270,6 +268,8 @@ void Loader::details::generateTangents(std::shared_ptr<Primitive> primitive)
     context.m_pInterface = &interface;
 
     genTangSpaceDefault(&context);
+
+    primitive->attributes.push_back(std::move(tangentAttribute));
 }
 
 std::vector<std::shared_ptr<Mesh>> Loader::details::processMeshes(std::shared_ptr<tinygltf::Model> gltfScene, const std::vector<std::shared_ptr<Material>>& materials)
@@ -414,6 +414,13 @@ std::vector<std::shared_ptr<Primitive>> Loader::details::processPrimitives(std::
 
                 primitive->attributes.push_back(std::move(attribute));
             }
+        }
+
+        if (gltfPrimitive.attributes.find("NORMAL") != gltfPrimitive.attributes.end()
+            && gltfPrimitive.attributes.find("TEXCOORD_0") != gltfPrimitive.attributes.end()
+            && gltfPrimitive.attributes.find("TANGENT") == gltfPrimitive.attributes.end())
+        {
+            generateTangents(primitive);
         }
 
         primitives.push_back(primitive);

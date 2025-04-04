@@ -211,6 +211,32 @@ void GLTFPBRMaterial::processTextures(vk::raii::DescriptorSet& descriptorSet, Ma
             // TODO: set some default base color texture and sampler
         }
     }
+
+    if (material->properties.contains("occlusionTexture"))
+    {
+        try
+        {
+            TextureProperty* textureProperty = dynamic_cast<TextureProperty*>(material->properties["occlusionTexture"].get());
+            processCombinedImageSampler(descriptorSet, 4, resources.occlusionImage, resources.occlusionSampler, textureProperty, vk::Format::eR8G8B8A8Unorm);
+        }
+        catch (std::bad_cast)
+        {
+            // TODO: set some default base color texture and sampler
+        }
+    }
+
+    if (material->properties.contains("emissiveTexture"))
+    {
+        try
+        {
+            TextureProperty* textureProperty = dynamic_cast<TextureProperty*>(material->properties["emissiveTexture"].get());
+            processCombinedImageSampler(descriptorSet, 5, resources.emissiveImage, resources.emissiveSampler, textureProperty, vk::Format::eR8G8B8A8Srgb);
+        }
+        catch (std::bad_cast)
+        {
+            // TODO: set some default base color texture and sampler
+        }
+    }
 }
 
 void GLTFPBRMaterial::processCombinedImageSampler(vk::raii::DescriptorSet& descriptorSet, int binding, VulkanImage& image, vk::raii::Sampler& sampler, const TextureProperty* textureProperty, vk::Format imageFormat)

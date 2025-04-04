@@ -44,6 +44,9 @@ namespace SVMV
         float _pitch            { 0.0f };
         float _yaw              { 0.0f };
 
+        float _desiredPitch     { 0.0f };
+        float _desiredYaw       { 0.0f };
+
         glm::vec3 _toMove       { 0.0f, 0.0f, 0.0f };
         float _toPitch          { 0.0f };
         float _toYaw            { 0.0f };

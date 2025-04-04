@@ -5,13 +5,14 @@ using namespace SVMV;
 Application::Application(int width, int height, const std::string& name)
 {
     glfwSetFramebufferSizeCallback(_window.getWindow(), resizedCallback);
-    //glfwSetWindowIconifyCallback(_window.getWindow(), minimizedCallback);
-    //glfwSetKeyCallback(_window.getWindow(), keyCallback);
-    //glfwSetCursorPosCallback(_window.getWindow(), cursorPositionCallback);
+    glfwSetWindowIconifyCallback(_window.getWindow(), minimizedCallback);
+    glfwSetKeyCallback(_window.getWindow(), keyCallback);
+    glfwSetCursorPosCallback(_window.getWindow(), cursorPositionCallback);
 
-    //glfwSetInputMode(_window.getWindow(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetInputMode(_window.getWindow(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     _inputHandler.registerController(&_cameraController);
+    _inputHandler.ignoreFirstMouseMovement();
 
     _renderer.loadScene(Loader::loadScene(RESOURCE_DIR"/models/WaterBottle.glb"));
 
@@ -58,10 +59,44 @@ void Application::minimizedCallback(GLFWwindow* window, int minimized)
 
 void Application::keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-    reinterpret_cast<Application*>(glfwGetWindowUserPointer(window))->_inputHandler.glfwKeyCallback(key, scancode, action, mods);
+    Application* application = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
+
+    if (key == GLFW_KEY_TAB && action == GLFW_PRESS)
+    {
+        if (application->_inMenu)
+        {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            application->_renderer.loadScene(Loader::loadScene(RESOURCE_DIR"/models/Avocado.glb"));
+        }
+        else
+        {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        }
+
+        application->_inMenu = !application->_inMenu;
+        application->_inputHandler.ignoreFirstMouseMovement();
+    }
+
+    if (!application->_inMenu)
+    {
+        application->_inputHandler.glfwKeyCallback(key, scancode, action, mods);
+    }
+    else
+    {
+        ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
+    }
 }
 
 void Application::cursorPositionCallback(GLFWwindow* window, double xpos, double ypos)
 {
-    reinterpret_cast<Application*>(glfwGetWindowUserPointer(window))->_inputHandler.glfwCursorPositionCallback(xpos, ypos);
+    Application* application = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
+
+    if (!application->_inMenu)
+    {
+        application->_inputHandler.glfwCursorPositionCallback(xpos, ypos);
+    }
+    else
+    {
+        ImGui_ImplGlfw_CursorPosCallback(window, xpos, ypos);
+    }
 }

@@ -98,6 +98,9 @@ shaderc_shader_kind VulkanShader::convertShaderType(ShaderType type)
     case ShaderType::FRAGMENT:
         return shaderc_shader_kind::shaderc_glsl_fragment_shader;
         break;
+    case ShaderType::COMPUTE:
+        return shaderc_shader_kind::shaderc_glsl_compute_shader;
+        break;
     default:
         throw std::runtime_error("shader: failed to convert shader type");
         break;

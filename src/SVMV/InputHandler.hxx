@@ -9,6 +9,8 @@
 #include <vector>
 #include <unordered_map>
 
+#include <iostream>
+
 namespace SVMV
 {
     class Controller
@@ -36,6 +38,8 @@ namespace SVMV
 
         void registerController(Controller* controller);
 
+        void ignoreFirstMouseMovement();
+
         void glfwKeyCallback(int key, int scancode, int action, int mods);
         void glfwCursorPositionCallback(double xpos, double ypos);
 
@@ -46,8 +50,8 @@ namespace SVMV
 
         std::unordered_map<int, bool> _keyHeldMap;
 
-        Input::MouseDelta _previousMouseDelta{ 0.0f, 0.0f };
+        Input::MouseDelta _previousMousePosition{ 0.0f, 0.0f };
         Input::MouseDelta _mouseDelta{ 0.0f, 0.0f };
-        bool mouseMoved{ false };
+        bool _ignoreFirstMouseMovement{ false };
     };
 }

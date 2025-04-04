@@ -3,7 +3,7 @@
 using namespace SVMV;
 
 CameraControllerNoclip::CameraControllerNoclip(bool active, float speed, float sensitivity, glm::vec3 position, float pitch, float yaw)
-    : _active(active), _speed(speed), _sensitivity(sensitivity), _position(position), _pitch(pitch), _yaw(yaw)
+    : _active(active), _speed(speed), _sensitivity(sensitivity), _position(position), _pitch(pitch), _yaw(yaw), _desiredPitch(pitch), _desiredYaw(yaw)
 {}
 
 CameraControllerNoclip::CameraControllerNoclip(CameraControllerNoclip&& other) noexcept
@@ -46,18 +46,21 @@ void CameraControllerNoclip::Process(float deltaTime)
             _position += glm::normalize(_toMove) * _speed * deltaTime;
         }
 
-        _pitch += _toPitch * _sensitivity * deltaTime;
-        _yaw += _toYaw * _sensitivity * deltaTime;
+        _desiredPitch += _toPitch * _sensitivity * deltaTime;
+        _desiredYaw += _toYaw * _sensitivity * deltaTime;
 
-        _pitch = std::min(std::max(_pitch, -85.0f), 85.0f);
+        _desiredPitch = std::min(std::max(_desiredPitch, -85.0f), 85.0f);
 
-        /*_front.x = std::cos(glm::radians(_yaw)) * std::cos(glm::radians(_pitch));
+        _pitch = std::lerp(_pitch, _desiredPitch, 0.9f);
+        _yaw = std::lerp(_yaw, _desiredYaw, 0.9f);
+
+        _front.x = std::cos(glm::radians(_yaw)) * std::cos(glm::radians(_pitch));
         _front.y = std::sin(glm::radians(_pitch));
         _front.z = std::sin(glm::radians(_yaw)) * std::cos(glm::radians(_pitch));
 
-        _front = glm::normalize(_front);*/
+        _front = glm::normalize(_front);
 
-        _front = glm::normalize(glm::vec3(0.0f, 0.0f, 0.0f) - _position);
+        //_front = glm::normalize(glm::vec3(0.0f, 0.0f, 0.0f) - _position);
 
         _toMove = glm::vec3(0.0f, 0.0f, 0.0f);
         _toPitch = 0.0f;
