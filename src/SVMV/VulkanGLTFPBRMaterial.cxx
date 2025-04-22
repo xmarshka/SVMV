@@ -4,8 +4,8 @@
 using namespace SVMV;
 
 GLTFPBRMaterial::GLTFPBRMaterial(
-    vk::raii::Device* device, VmaAllocator memoryAllocator, VulkanUtilities::ImmediateSubmit* immediateSubmit, const vk::raii::RenderPass& renderPass,
-    const vk::raii::DescriptorSetLayout& globalDescriptorSetLayout, VulkanUtilities::DescriptorAllocator* descriptorAllocator, VulkanDescriptorWriter* descriptorWriter, const shaderc::Compiler& compiler
+    vk::raii::Device* device, VmaAllocator memoryAllocator, VulkanUtilities::ImmediateSubmit* immediateSubmit, const vk::raii::RenderPass& renderPass, const vk::raii::DescriptorSetLayout& globalDescriptorSetLayout,
+    const vk::raii::DescriptorSetLayout& lightDescriptorSetLayout, VulkanUtilities::DescriptorAllocator* descriptorAllocator, VulkanDescriptorWriter* descriptorWriter, const shaderc::Compiler& compiler
 )
     : _device(device), _memoryAllocator(memoryAllocator), _immediateSubmit(immediateSubmit), _descriptorAllocator(descriptorAllocator), _descriptorWriter(descriptorWriter)
 {
@@ -60,7 +60,7 @@ GLTFPBRMaterial::GLTFPBRMaterial(
     pushConstantRange.setSize(sizeof(ShaderStructures::PushConstants));
     pushConstantRange.setStageFlags(vk::ShaderStageFlagBits::eVertex);
 
-    std::vector<vk::DescriptorSetLayout> descriptorSetLayouts = { *globalDescriptorSetLayout, *_descriptorSetLayout };
+    std::vector<vk::DescriptorSetLayout> descriptorSetLayouts = { *globalDescriptorSetLayout, *lightDescriptorSetLayout, *_descriptorSetLayout };
 
     vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
     pipelineLayoutCreateInfo.setPushConstantRanges(pushConstantRange);

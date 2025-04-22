@@ -66,7 +66,6 @@ void Application::keyCallback(GLFWwindow* window, int key, int scancode, int act
         if (application->_inMenu)
         {
             glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-            application->_renderer.loadScene(Loader::loadScene(RESOURCE_DIR"/models/Avocado.glb"));
         }
         else
         {

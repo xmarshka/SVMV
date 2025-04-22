@@ -32,5 +32,14 @@ namespace SVMV
             glm::vec4 padding3;
             glm::mat4 padding4;
         };
+
+        struct LightParametersBuffer
+        {
+            glm::vec4 position;
+            glm::vec4 flux;
+
+            // padding to align to 256 bytes
+            glm::vec4 padding[14];
+        };
     }
 }

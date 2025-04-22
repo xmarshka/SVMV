@@ -55,8 +55,8 @@ namespace SVMV
     public:
         GLTFPBRMaterial() = default;
         GLTFPBRMaterial(
-            vk::raii::Device* device, VmaAllocator memoryAllocator, VulkanUtilities::ImmediateSubmit* immediateSubmit, const vk::raii::RenderPass& renderPass,
-            const vk::raii::DescriptorSetLayout& globalDescriptorSetLayout, VulkanUtilities::DescriptorAllocator* descriptorAllocator, VulkanDescriptorWriter* descriptorWriter, const shaderc::Compiler& compiler
+            vk::raii::Device* device, VmaAllocator memoryAllocator, VulkanUtilities::ImmediateSubmit* immediateSubmit, const vk::raii::RenderPass& renderPass, const vk::raii::DescriptorSetLayout& globalDescriptorSetLayout,
+            const vk::raii::DescriptorSetLayout& lightDescriptorSetLayout, VulkanUtilities::DescriptorAllocator* descriptorAllocator, VulkanDescriptorWriter* descriptorWriter, const shaderc::Compiler& compiler
         );
 
         GLTFPBRMaterial(const GLTFPBRMaterial&) = delete;

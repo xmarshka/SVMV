@@ -17,6 +17,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <SVMV/Loader.hxx>
 #include <SVMV/GLFWwindowWrapper.hxx>
 #include <SVMV/Scene.hxx>
 #include <SVMV/Node.hxx>
@@ -28,6 +29,7 @@
 #include <SVMV/VulkanBuffer.hxx>
 #include <SVMV/VulkanShaderStructures.hxx>
 #include <SVMV/VulkanDescriptorWriter.hxx>
+#include <SVMV/VulkanLight.hxx>
 
 #include <memory>
 #include <vector>
@@ -72,8 +74,6 @@ namespace SVMV
 
         void recreateSwapchain();
         void createRenderPass();
-        void createShadowMappingRenderPass();
-        void createShadowMappingPipeline();
         void createGlobalDescriptorSets();
         void createDepthBuffer();
 
@@ -132,14 +132,16 @@ namespace SVMV
         std::vector<vk::raii::Semaphore> _renderCompleteSemaphores;
         std::vector<vk::raii::Fence> _inFlightFences;
 
-        vk::raii::DescriptorSetLayout _globalDescriptorSetLayout    { nullptr };
+        vk::raii::DescriptorSetLayout _globalDescriptorSetLayout        { nullptr };
         std::vector<VulkanUniformBuffer> _globalDescriptorSetBuffers;
         std::vector<vk::raii::DescriptorSet> _globalDescriptorSets;
 
-        VulkanScene _scene;
+        vk::raii::DescriptorSetLayout _lightDescriptorSetLayout         { nullptr };
 
-        vk::raii::Pipeline _shadowMappingPipeline           { nullptr };
-        vk::raii::RenderPass _shadowMappingRenderPass       { nullptr };
+        VulkanScene _scene;
+        std::string _requestedScenePath;
+
+        VulkanLight _light;
 
         VulkanInitilization _initilization;
     };

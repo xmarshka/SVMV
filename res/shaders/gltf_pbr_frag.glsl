@@ -2,16 +2,21 @@
 
 #define PI 3.1415926538
 
-layout(set = 1, binding = 0) uniform MaterialUniformParameters {
+layout(set = 1, binding = 0) uniform LightParameters {
+    vec4 ws_pos;
+    vec4 flux;
+} light_params_buf;
+
+layout(set = 2, binding = 0) uniform MaterialUniformParameters {
     vec4 baseColorFactor;
     vec4 roughnessMetallicFactors;
 } mat_param_buf;
 
-layout(set = 1, binding = 1) uniform sampler2D base_col_tx;
-layout(set = 1, binding = 2) uniform sampler2D normal_tx;
-layout(set = 1, binding = 3) uniform sampler2D metal_rough_tx;
-layout(set = 1, binding = 4) uniform sampler2D occlusion_tx;
-layout(set = 1, binding = 5) uniform sampler2D emissive_tx;
+layout(set = 2, binding = 1) uniform sampler2D base_col_tx;
+layout(set = 2, binding = 2) uniform sampler2D normal_tx;
+layout(set = 2, binding = 3) uniform sampler2D metal_rough_tx;
+layout(set = 2, binding = 4) uniform sampler2D occlusion_tx;
+layout(set = 2, binding = 5) uniform sampler2D emissive_tx;
 
 layout(location = 0) in vec4 col0;
 layout(location = 1) in vec2 uv0;
@@ -25,7 +30,7 @@ layout(location = 7) in vec3 ts_light_pos;
 
 layout(location = 0) out vec4 out_col;
 
-float d_trowbridge_reitz(in vec3 N, in vec3 H, in float alpha) {
+float d_trowbridge_reitz_ggx(in vec3 N, in vec3 H, in float alpha) {
     float alpha_sq = alpha * alpha;
     float dot_N_H = max(dot(N, H), 0.0);
     float dot_N_H_sq = dot_N_H * dot_N_H;
@@ -59,7 +64,7 @@ vec3 f_schlick_metal(in vec3 H, in vec3 V, in vec3 f_0) {
 }
 
 vec3 brdf_s_cook_torrance(in vec3 L, in vec3 V, in vec3 N, in vec3 H, in float alpha) {
-    return vec3(1.0, 1.0, 1.0) * ((d_trowbridge_reitz(N, H, alpha) * g_smith_t_r_ms(N, V, L, H, alpha)) / (4.0 * max(dot(N, L), 0.0) * max(dot(N, V), 0.0) + 0.0001));
+    return vec3(1.0, 1.0, 1.0) * ((d_trowbridge_reitz_ggx(N, H, alpha) * g_smith_t_r_ms(N, V, L, H, alpha)) / (4.0 * max(dot(N, L), 0.0) * max(dot(N, V), 0.0) + 0.0001));
 }
 
 vec3 brdf_d_lambert(in vec3 base_col) {
@@ -73,7 +78,7 @@ void main() {
     vec3 orm = texture(metal_rough_tx, uv0).rgb;
 
     //vec3 light_pos = vec3(2.0, 0.0, 1.0);
-    vec3 light_col = vec3(1.0, 1.0, 1.0) * 0.5;
+    vec3 light_col = light_params_buf.flux.rgb;
 
     float light_distance = length(ts_light_pos - ts_P);
 

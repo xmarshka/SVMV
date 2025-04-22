@@ -65,7 +65,6 @@ std::vector<std::shared_ptr<Material>> Loader::details::processMaterials(std::sh
 {
     std::vector<std::shared_ptr<Material>> materials;
 
-    // WITH... a default texture at index 0 (?)
     std::vector<std::shared_ptr<Texture>> textures = processTextures(gltfScene);
 
     for (const auto& gltfMaterial : gltfScene->materials)
@@ -447,7 +446,7 @@ std::shared_ptr<Node> Loader::details::processNode(const tinygltf::Node& gltfNod
 
     if (gltfNode.matrix.size() != 0)
     {
-        node->transform = glm::make_mat4(gltfNode.matrix.data()); // TODO: test this
+        node->transform = glm::make_mat4(gltfNode.matrix.data());
     }
     else
     {
@@ -481,7 +480,6 @@ std::shared_ptr<Node> Loader::details::processNode(const tinygltf::Node& gltfNod
 
 std::shared_ptr<Material> Loader::details::createDefaultMaterial()
 {
-    // TODO: replace with an UNLIT material type
     std::shared_ptr<Material> material = std::make_shared<Material>();
     material->materialTypeName = "glTFPBR";
 

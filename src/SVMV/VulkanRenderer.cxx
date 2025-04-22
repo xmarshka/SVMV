@@ -62,7 +62,7 @@ VulkanRenderer::VulkanRenderer(int width, int height, const std::string& name, u
 
     ImGui_ImplGlfw_InitForVulkan(window.getWindow(), true);
 
-    // TODO: TEMP: INITIALIZE IMGUI VULKAN OBJECTS
+    // initialize imgui vulkan objects
 
     vk::DescriptorPoolSize poolSizes[] = {
         { vk::DescriptorType::eSampler, 1000 },
@@ -131,9 +131,11 @@ VulkanRenderer::VulkanRenderer(int width, int height, const std::string& name, u
     init_info.CheckVkResultFn = [](VkResult result) { if (result != VK_SUCCESS) throw std::runtime_error("imgui: error"); };
     ImGui_ImplVulkan_Init(&init_info);
 
-    // ImGui_ImplVulkan_CreateFontsTexture(); // ?????
-
     _imguiFramebuffers = _initilization.createFramebuffers(_device, _imguiRenderPass, _imageViews);
+
+    _light = VulkanLight(
+        glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(2.0f, 3.0f, 2.0f), &_device, _vmaAllocator.getAllocator(), _lightDescriptorSetLayout, &_descriptorAllocator, &_descriptorWriter, framesInFlight
+    );
 }
 
 VulkanRenderer::~VulkanRenderer()
@@ -145,7 +147,13 @@ VulkanRenderer::~VulkanRenderer()
 
 void VulkanRenderer::draw()
 {
-    // Wait for this frame index's render to be finished
+    if (!_requestedScenePath.empty())
+    {
+        loadScene(Loader::loadScene(_requestedScenePath));
+        _requestedScenePath.clear();
+    }
+
+    // wait for this frame index's render to be finished
     vk::Result waitForFencesResult = _device.waitForFences(*_inFlightFences[_activeFrame], vk::True, UINT64_MAX);
 
     if (waitForFencesResult != vk::Result::eSuccess)
@@ -153,7 +161,7 @@ void VulkanRenderer::draw()
         throw std::runtime_error("vulkan: failure waiting for fences");
     }
 
-    // Acquire an image for color output
+    // acquire an image for color output
     vk::AcquireNextImageInfoKHR acquireNextImageInfo;
     acquireNextImageInfo.setSwapchain(_swapchain);
     acquireNextImageInfo.setTimeout(UINT64_MAX);
@@ -176,7 +184,7 @@ void VulkanRenderer::draw()
 
     _device.resetFences(*_inFlightFences[_activeFrame]);
 
-    // Set the current frame's camera matrix descriptor set
+    // set the current frame's camera matrix descriptor set
     ShaderStructures::GlobalUniformBuffer globalUniformBuffer;
     globalUniformBuffer.View = _viewMatrix;
     globalUniformBuffer.ViewProjection = _projectionMatrix * _viewMatrix;
@@ -186,11 +194,14 @@ void VulkanRenderer::draw()
 
     _descriptorWriter.writeBuffer(_globalDescriptorSets[_activeFrame], _globalDescriptorSetBuffers[_activeFrame], 0, 0, sizeof(ShaderStructures::GlobalUniformBuffer), vk::DescriptorType::eUniformBuffer);
 
-    // Record draw command buffers
+    // update this frame's light descriptor set
+    _light.updateLightDescriptor(_activeFrame);
+
+    // record draw command buffers
     _drawCommandBuffers[_activeFrame].reset();
     recordDrawCommands(_activeFrame, _framebuffers[acquireResult.second], _imguiFramebuffers[acquireResult.second]);
 
-    // Submit command buffer to graphics queue for execution
+    // submit command buffer to graphics queue for execution
     vk::SubmitInfo submitInfo;
     submitInfo.setWaitSemaphores(*(_imageReadySemaphores[_activeFrame]));
     vk::PipelineStageFlags waitDstStageFlags = vk::PipelineStageFlagBits::eColorAttachmentOutput;
@@ -200,7 +211,7 @@ void VulkanRenderer::draw()
 
     _graphicsQueue.submit(submitInfo, *_inFlightFences[_activeFrame]);
 
-    // Present the frame to the screen
+    // present the frame to the screen
     vk::PresentInfoKHR presentInfo;
     presentInfo.setWaitSemaphores(*(_renderCompleteSemaphores[_activeFrame]));
     presentInfo.setSwapchains(*(_swapchain));
@@ -220,12 +231,14 @@ void VulkanRenderer::draw()
         break;
     }
 
-    // Increment active frame index
+    // increment active frame index
     _activeFrame = (_activeFrame + 1) % _framesInFlight;
 }
 
 void VulkanRenderer::loadScene(std::shared_ptr<Scene> scene)
 {
+    _device.waitIdle(); // wait here for all the frames to finish rendering and presenting
+
     _scene = VulkanScene();
 
     preprocessScene(scene);
@@ -292,9 +305,11 @@ void VulkanRenderer::recordDrawCommands(int activeFrame, const vk::raii::Framebu
 
         _drawCommandBuffers[activeFrame].bindIndexBuffer(_scene.indexGPUBuffer.getBuffer(), vk::DeviceSize(0), vk::IndexType::eUint32);
 
+        _drawCommandBuffers[activeFrame].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *context.second.pipelineLayout, 1, **_light.getDescriptorSet(activeFrame), nullptr);
+
         for (const auto& drawable : context.second.drawables)
         {
-            _drawCommandBuffers[activeFrame].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *context.second.pipelineLayout, 1, drawable.descriptorSet, nullptr);
+            _drawCommandBuffers[activeFrame].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *context.second.pipelineLayout, 2, drawable.descriptorSet, nullptr);
 
             constants.positions = drawable.attributeAddresses.positions;
             constants.normals = drawable.attributeAddresses.normals;
@@ -317,6 +332,9 @@ void VulkanRenderer::recordDrawCommands(int activeFrame, const vk::raii::Framebu
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
+    if (ImGui::Button("Toggle light")) {
+        _light.setLightData(glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(4.0f, 1.0f, 1.0f));
+    }
     if (ImGui::Button("Open File Dialog")) {
         IGFD::FileDialogConfig config;
         config.path = ".";
@@ -329,6 +347,8 @@ void VulkanRenderer::recordDrawCommands(int activeFrame, const vk::raii::Framebu
             std::string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
             // action
             std::cout << filePathName << "\t" << filePath << std::endl;
+
+            _requestedScenePath = filePathName;
         }
 
         // close
@@ -451,15 +471,15 @@ void VulkanRenderer::generateDrawablesFromScene(std::shared_ptr<Node> node, glm:
 
                 _scene.primitiveDrawableMap[primitive] = drawable;
 
-                // TODO: rewrite necessary
+                // all scenes loaded using the glTF loader contain the glTFPBR material 
                 if (!_scene.contexts.contains(primitive->material->materialTypeName))
                 {
                     _scene.contexts[primitive->material->materialTypeName] = VulkanMaterialContext();
                     if (primitive->material->materialTypeName == "glTFPBR")
                     {
                         _scene.glTFPBRMaterial = GLTFPBRMaterial(
-                            &_device, _vmaAllocator.getAllocator(), &_immediateSubmit, _renderPass,
-                            _globalDescriptorSetLayout, &_descriptorAllocator, &_descriptorWriter, _shaderCompiler
+                            &_device, _vmaAllocator.getAllocator(), &_immediateSubmit, _renderPass, _globalDescriptorSetLayout,
+                            _lightDescriptorSetLayout, &_descriptorAllocator, &_descriptorWriter, _shaderCompiler
                         );
                         _scene.contexts[primitive->material->materialTypeName].pipeline = _scene.glTFPBRMaterial.getPipeline();
                         _scene.contexts[primitive->material->materialTypeName].pipelineLayout = _scene.glTFPBRMaterial.getPipelineLayout();
@@ -468,7 +488,7 @@ void VulkanRenderer::generateDrawablesFromScene(std::shared_ptr<Node> node, glm:
                     }
                     else
                     {
-                        throw std::runtime_error("Unsupported material type.");
+                        throw std::runtime_error("unsupported material type.");
                     }
                 }
                 else if (primitive->material->materialTypeName == "glTFPBR")
@@ -477,7 +497,7 @@ void VulkanRenderer::generateDrawablesFromScene(std::shared_ptr<Node> node, glm:
                 }
                 else
                 {
-                    throw std::runtime_error("Unsupported material type.");
+                    throw std::runtime_error("unsupported material type.");
                 }
             }
 
@@ -494,18 +514,18 @@ void VulkanRenderer::generateDrawablesFromScene(std::shared_ptr<Node> node, glm:
 void VulkanRenderer::copyStagingBuffersToGPUBuffers()
 {
     _scene.indexStagingBuffer.copyToBuffer(_scene.indexGPUBuffer);
-    _graphicsQueue.waitIdle(); // TODO: proper synchronisation
+    _graphicsQueue.waitIdle();
 
     _scene.modelMatrixStagingBuffer.copyToBuffer(_scene.modelMatrixGPUBuffer);
-    _graphicsQueue.waitIdle(); // TODO: proper synchronisation
+    _graphicsQueue.waitIdle();
 
     _scene.normalMatrixStagingBuffer.copyToBuffer(_scene.normalMatrixGPUBuffer);
-    _graphicsQueue.waitIdle(); // TODO: proper synchronisation
+    _graphicsQueue.waitIdle();
 
     for (auto& attribute : _scene.attributes)
     {
         attribute.stagingBuffer.copyToBuffer(attribute.gpuBuffer);
-        _graphicsQueue.waitIdle(); // TODO: proper synchronisation
+        _graphicsQueue.waitIdle();
     }
 }
 
@@ -591,14 +611,16 @@ void VulkanRenderer::createRenderPass()
 
 void VulkanRenderer::createGlobalDescriptorSets()
 {
-    vk::DescriptorSetLayoutBinding descriptorSetLayoutBinging;
-    descriptorSetLayoutBinging.setBinding(0);
-    descriptorSetLayoutBinging.setDescriptorCount(1);
-    descriptorSetLayoutBinging.setDescriptorType(vk::DescriptorType::eUniformBuffer);
-    descriptorSetLayoutBinging.setStageFlags(vk::ShaderStageFlagBits::eVertex);
+    vk::DescriptorSetLayoutBinding descriptorSetLayoutBinding;
+
+    // camera parameters
+    descriptorSetLayoutBinding.setBinding(0);
+    descriptorSetLayoutBinding.setDescriptorCount(1);
+    descriptorSetLayoutBinding.setDescriptorType(vk::DescriptorType::eUniformBuffer);
+    descriptorSetLayoutBinding.setStageFlags(vk::ShaderStageFlagBits::eVertex);
 
     vk::DescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo;
-    descriptorSetLayoutCreateInfo.setBindings(descriptorSetLayoutBinging);
+    descriptorSetLayoutCreateInfo.setBindings(descriptorSetLayoutBinding);
 
     _globalDescriptorSetLayout = vk::raii::DescriptorSetLayout(_device, descriptorSetLayoutCreateInfo);
 
@@ -608,7 +630,15 @@ void VulkanRenderer::createGlobalDescriptorSets()
         _globalDescriptorSets.push_back(std::move(_descriptorAllocator.allocateSet(_globalDescriptorSetLayout)));
     }
 
-    // TODO: write shadow map to global descriptor set
+    // light parameters
+    descriptorSetLayoutBinding.setBinding(0);
+    descriptorSetLayoutBinding.setDescriptorCount(1);
+    descriptorSetLayoutBinding.setDescriptorType(vk::DescriptorType::eUniformBuffer);
+    descriptorSetLayoutBinding.setStageFlags(vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment);
+
+    descriptorSetLayoutCreateInfo.setBindings(descriptorSetLayoutBinding);
+
+    _lightDescriptorSetLayout = vk::raii::DescriptorSetLayout(_device, descriptorSetLayoutCreateInfo);
 }
 
 void VulkanRenderer::createDepthBuffer()
