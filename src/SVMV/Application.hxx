@@ -14,7 +14,7 @@ namespace SVMV
     {
     private:
         GLFWwindowWrapper _window{ 1440, 1440, "SVMV", this };
-        VulkanRenderer _renderer{ 1440, 1440, "SVMV", 2, _window };
+        VulkanRenderer _renderer{ 1440, 1440, "SVMV", 3, _window };
 
         InputHandler _inputHandler;
         CameraControllerNoclip _cameraController{ true, 0.3f, 3.06f, glm::vec3(0.0f, 0.0f, 0.5f), 0.0f, -90.0f };

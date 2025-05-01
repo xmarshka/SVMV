@@ -49,32 +49,28 @@ void main() {
     out_ws_P = vec3(pc.model_mat_buf.data[0] * vec4(ms_P, 1.0));
     out_ws_cam_pos = cam_mats_buf.ws_pos.xyz;
 
-    if (uvec2(pc.uv0_buf) != uvec2(0)) {
-        out_uv0 = vec2(pc.uv0_buf.data[gl_VertexIndex * 2], pc.uv0_buf.data[gl_VertexIndex * 2 + 1]);
-    }
+    out_uv0 = vec2(pc.uv0_buf.data[gl_VertexIndex * 2], pc.uv0_buf.data[gl_VertexIndex * 2 + 1]);
 
     out_ws_Ng = vec3(0.0, 0.0, 0.0);
 
-    if (uvec2(pc.N_buf) != uvec2(0)){
-        mat3 normal_mat = mat3(pc.normal_mat_buf.data[0]);
+    mat3 normal_mat = mat3(pc.normal_mat_buf.data[0]);
 
-        vec3 ws_Ng = normalize(normal_mat * vec3(pc.N_buf.data[gl_VertexIndex * 3 + 0], pc.N_buf.data[gl_VertexIndex * 3 + 1], pc.N_buf.data[gl_VertexIndex * 3 + 2]));
-        out_ws_Ng = ws_Ng;
+    vec3 ws_Ng = normalize(normal_mat * vec3(pc.N_buf.data[gl_VertexIndex * 3 + 0], pc.N_buf.data[gl_VertexIndex * 3 + 1], pc.N_buf.data[gl_VertexIndex * 3 + 2]));
+    out_ws_Ng = ws_Ng;
 
-        if (uvec2(pc.T_buf) != uvec2(0)) {
-            vec3 ws_T = normalize(vec3(normal_mat * vec3(pc.T_buf.data[gl_VertexIndex * 4 + 0], pc.T_buf.data[gl_VertexIndex * 4 + 1], pc.T_buf.data[gl_VertexIndex * 4 + 2])));
+    vec3 ws_T = normalize(vec3(normal_mat * vec3(pc.T_buf.data[gl_VertexIndex * 4 + 0], pc.T_buf.data[gl_VertexIndex * 4 + 1], pc.T_buf.data[gl_VertexIndex * 4 + 2])));
 
-            vec3 ws_B = normalize(cross(ws_T, ws_Ng) * pc.T_buf.data[gl_VertexIndex * 4 + 3]);
+    vec3 ws_B = normalize(cross(ws_T, ws_Ng) * pc.T_buf.data[gl_VertexIndex * 4 + 3]);
 
-            mat3 ts_mat = transpose(mat3(ws_T, ws_B, ws_Ng));
+    mat3 ts_mat = transpose(mat3(ws_T, ws_B, ws_Ng));
 
-            out_ts_P = ts_mat * vec3(pc.model_mat_buf.data[0] * vec4(ms_P, 1.0));
-            out_ts_cam_pos = ts_mat * cam_mats_buf.ws_pos.xyz;
-            out_ts_light_pos = ts_mat * light_params_buf.ws_pos.xyz;
-        }
+    out_ts_P = ts_mat * vec3(pc.model_mat_buf.data[0] * vec4(ms_P, 1.0));
+    out_ts_cam_pos = ts_mat * cam_mats_buf.ws_pos.xyz;
+    out_ts_light_pos = ts_mat * light_params_buf.ws_pos.xyz;
+
+    out_col0 = vec4(1.0, 1.0, 1.0, 1.0);
+
+    if (uvec2(pc.col0_buf) != uvec2(0)) {
+        out_col0 = vec4(pc.col0_buf.data[gl_VertexIndex * 4], pc.col0_buf.data[gl_VertexIndex * 4 + 1], pc.col0_buf.data[gl_VertexIndex * 4 + 2],  pc.col0_buf.data[gl_VertexIndex * 4 + 3]);
     }
-
-    // if (uvec2(pc.col0_buf) != uvec2(0)) {
-    //     out_col0 = vec4(pc.col0_buf.data[gl_VertexIndex * 4], pc.col0_buf.data[gl_VertexIndex * 4 + 1], pc.col0_buf.data[gl_VertexIndex * 4 + 2],  pc.col0_buf.data[gl_VertexIndex * 4 + 3]);
-    // }
 }

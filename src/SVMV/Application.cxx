@@ -14,7 +14,7 @@ Application::Application(int width, int height, const std::string& name)
     _inputHandler.registerController(&_cameraController);
     _inputHandler.ignoreFirstMouseMovement();
 
-    _renderer.loadScene(Loader::loadScene(RESOURCE_DIR"/models/WaterBottle.glb"));
+    //_renderer.loadScene(Loader::loadScene(RESOURCE_DIR"/models/WaterBottle.glb"));
 
     loop();
 }

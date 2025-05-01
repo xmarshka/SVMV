@@ -194,6 +194,8 @@ void Loader::details::generateTangents(std::shared_ptr<Primitive> primitive)
     tangentAttribute.size = tangentAttribute.count * tangentAttribute.componentCount * sizeof(float);
     tangentAttribute.elements = std::make_unique_for_overwrite<std::byte[]>(tangentAttribute.size);
 
+    primitive->attributes.push_back(std::move(tangentAttribute));
+
     SMikkTSpaceContext context = {};
     context.m_pUserData = primitive.get();
 
@@ -236,7 +238,7 @@ void Loader::details::generateTangents(std::shared_ptr<Primitive> primitive)
         fvNormOut[2] = normals[index + 2];
     };
 
-    interface.m_getPosition = [](const SMikkTSpaceContext* context, float fvTexcOut[], const int face, const int vert)
+    interface.m_getTexCoord = [](const SMikkTSpaceContext* context, float fvTexcOut[], const int face, const int vert)
     {
         Primitive* primitive = (Primitive*)(context->m_pUserData);
         Attribute* attribute = getAttributeByType(primitive, AttributeType::TEXCOORD_0);
@@ -267,8 +269,6 @@ void Loader::details::generateTangents(std::shared_ptr<Primitive> primitive)
     context.m_pInterface = &interface;
 
     genTangSpaceDefault(&context);
-
-    primitive->attributes.push_back(std::move(tangentAttribute));
 }
 
 std::vector<std::shared_ptr<Mesh>> Loader::details::processMeshes(std::shared_ptr<tinygltf::Model> gltfScene, const std::vector<std::shared_ptr<Material>>& materials)
@@ -415,14 +415,21 @@ std::vector<std::shared_ptr<Primitive>> Loader::details::processPrimitives(std::
             }
         }
 
-        if (gltfPrimitive.attributes.find("NORMAL") != gltfPrimitive.attributes.end()
-            && gltfPrimitive.attributes.find("TEXCOORD_0") != gltfPrimitive.attributes.end()
-            && gltfPrimitive.attributes.find("TANGENT") == gltfPrimitive.attributes.end())
+        if (gltfPrimitive.attributes.find("POSITION") != gltfPrimitive.attributes.end()
+            && gltfPrimitive.attributes.find("NORMAL") != gltfPrimitive.attributes.end()
+            && gltfPrimitive.attributes.find("TEXCOORD_0") != gltfPrimitive.attributes.end())
         {
-            generateTangents(primitive);
-        }
+            if (gltfPrimitive.attributes.find("TANGENT") == gltfPrimitive.attributes.end())
+            {
+                generateTangents(primitive);
+            }
 
-        primitives.push_back(primitive);
+            primitives.push_back(primitive);
+        }
+        else
+        {
+            std::cout << "Attempting to load a primitive with missing position, normal or texcoord_0 attribute. Skipping primitive.\n";
+        }
     }
 
     return primitives;

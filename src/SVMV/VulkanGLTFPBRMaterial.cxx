@@ -11,8 +11,6 @@ GLTFPBRMaterial::GLTFPBRMaterial(
 {
     _vertexShader = VulkanShader(*_device, compiler, VulkanShader::ShaderType::VERTEX, "gltf_pbr_vert.glsl");
     _fragmentShader = VulkanShader(*_device, compiler, VulkanShader::ShaderType::FRAGMENT, "gltf_pbr_frag.glsl");
- 
-    // TODO: think about rewriting this as a vector and n pushBacks
 
     vk::DescriptorSetLayoutBinding descriptorSetLayoutBingings[6];
     descriptorSetLayoutBingings[0].setBinding(0);

@@ -4,7 +4,7 @@ using namespace SVMV;
 
 VulkanShader::VulkanShader(const vk::raii::Device& device, const shaderc::Compiler& shaderCompiler, ShaderType type, const std::string& file)
 {
-    auto shaderCode = readFile(RESOURCE_DIR"/shaders/" + file);
+    auto shaderCode = readFile(file);
 
     _type = type;
 

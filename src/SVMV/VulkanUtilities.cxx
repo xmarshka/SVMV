@@ -183,7 +183,6 @@ std::shared_ptr<vk::raii::DescriptorPool> VulkanUtilities::DescriptorAllocator::
     else
     {
         pool = createPool();
-        _availablePools.push_back(pool);
     }
 
     return pool;
@@ -205,7 +204,7 @@ std::shared_ptr<vk::raii::DescriptorPool> VulkanUtilities::DescriptorAllocator::
 
     std::shared_ptr<vk::raii::DescriptorPool> pool = std::make_shared<vk::raii::DescriptorPool>(*_device, info);
 
-    if (_setsPerPool < 4096)
+    if (_setsPerPool < 16384)
     {
         _setsPerPool *= 2;
     }
