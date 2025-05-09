@@ -182,19 +182,6 @@ void VulkanImage::fillImage(void* data, size_t size)
     VulkanStagingBuffer stagingBuffer = VulkanStagingBuffer(_device, _immediateSubmit, _allocator, size);
     stagingBuffer.pushData(data, size);
 
-    //vk::ImageMemoryBarrier2 imageMemoryBarrier;
-    //imageMemoryBarrier.setOldLayout(vk::ImageLayout::eUndefined);
-    //imageMemoryBarrier.setNewLayout(vk::ImageLayout::eTransferDstOptimal);
-    //imageMemoryBarrier.setSrcStageMask(vk::PipelineStageFlagBits2::eTopOfPipe);
-    //imageMemoryBarrier.setSrcAccessMask(vk::AccessFlagBits2::eNone);
-    //imageMemoryBarrier.setDstStageMask(vk::PipelineStageFlagBits2::eTransfer);
-    //imageMemoryBarrier.setDstAccessMask(vk::AccessFlagBits2::eMemoryWrite);
-    //imageMemoryBarrier.setImage(_image);
-    //imageMemoryBarrier.setSubresourceRange(vk::ImageSubresourceRange{ vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 });
-
-    /*vk::DependencyInfo dependencyInfo;
-    dependencyInfo.setImageMemoryBarriers(imageMemoryBarrier);*/
-
     vk::BufferImageCopy bufferImageCopy;
     bufferImageCopy.setBufferOffset(0);
     bufferImageCopy.setBufferRowLength(0);
@@ -202,17 +189,6 @@ void VulkanImage::fillImage(void* data, size_t size)
     bufferImageCopy.setImageSubresource(vk::ImageSubresourceLayers{ vk::ImageAspectFlagBits::eColor, 0, 0, 1 });
     bufferImageCopy.setImageOffset(vk::Offset3D{ 0, 0, 0 });
     bufferImageCopy.setImageExtent(_extent);
-
-    /*vk::ImageMemoryBarrier2 imageMemoryBarrierPost = imageMemoryBarrier;
-    imageMemoryBarrierPost.setOldLayout(vk::ImageLayout::eTransferDstOptimal);
-    imageMemoryBarrierPost.setNewLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
-    imageMemoryBarrierPost.setSrcStageMask(vk::PipelineStageFlagBits2::eTransfer);
-    imageMemoryBarrierPost.setSrcAccessMask(vk::AccessFlagBits2::eMemoryWrite);
-    imageMemoryBarrierPost.setDstStageMask(vk::PipelineStageFlagBits2::eFragmentShader);
-    imageMemoryBarrierPost.setDstAccessMask(vk::AccessFlagBits2::eMemoryRead);
-
-    vk::DependencyInfo dependencyInfoPost = dependencyInfo;
-    dependencyInfoPost.setImageMemoryBarriers(imageMemoryBarrierPost);*/
 
     vk::ImageMemoryBarrier imageMemoryBarrierNEW;
     imageMemoryBarrierNEW.setOldLayout(vk::ImageLayout::eUndefined);
@@ -233,9 +209,7 @@ void VulkanImage::fillImage(void* data, size_t size)
     vk::raii::Fence* fence = _immediateSubmit->submit([&](vk::CommandBuffer commandBuffer)
         {
             commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTransfer, vk::DependencyFlagBits::eByRegion, nullptr, nullptr, imageMemoryBarrierNEW);
-            //commandBuffer.pipelineBarrier2(dependencyInfo);
             commandBuffer.copyBufferToImage(stagingBuffer.getBuffer(), _image, vk::ImageLayout::eTransferDstOptimal, bufferImageCopy);
-            //commandBuffer.pipelineBarrier2(dependencyInfoPost);
             commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader, vk::DependencyFlagBits::eByRegion, nullptr, nullptr, imageMemoryBarrierPostNEW);
         });
 

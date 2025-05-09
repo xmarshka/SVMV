@@ -20,6 +20,7 @@ namespace SVMV
         CameraControllerNoclip _cameraController{ true, 0.3f, 3.06f, glm::vec3(0.0f, 0.0f, 0.5f), 0.0f, -90.0f };
 
         bool _inMenu{ false };
+        bool _minimized{ false };
 
     public:
         Application() = delete;
@@ -40,5 +41,6 @@ namespace SVMV
         static void minimizedCallback(GLFWwindow* window, int minimized);
         static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
         static void cursorPositionCallback(GLFWwindow* window, double xpos, double ypos);
+        static void scrollCallback(GLFWwindow* window, double xoffset, double yoffset);
     };
 }

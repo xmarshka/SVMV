@@ -134,7 +134,7 @@ VulkanRenderer::VulkanRenderer(int width, int height, const std::string& name, u
     _imguiFramebuffers = _initilization.createFramebuffers(_device, _imguiRenderPass, _imageViews);
 
     _light = VulkanLight(
-        glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(2.0f, 3.0f, 2.0f), &_device, _vmaAllocator.getAllocator(), _lightDescriptorSetLayout, &_descriptorAllocator, &_descriptorWriter, framesInFlight
+        glm::vec4(1.0f, 1.0f, 1.0f, 0.0f), glm::vec4(2.0f, 3.0f, 2.0f, 0.0f), &_device, _vmaAllocator.getAllocator(), _lightDescriptorSetLayout, &_descriptorAllocator, &_descriptorWriter, framesInFlight
     );
 }
 
@@ -168,18 +168,19 @@ void VulkanRenderer::draw()
     acquireNextImageInfo.setSemaphore(_imageReadySemaphores[_activeFrame]);
     acquireNextImageInfo.setDeviceMask(0b1);
 
-    auto acquireResult = _device.acquireNextImage2KHR(acquireNextImageInfo);
+    std::pair<vk::Result, uint32_t> acquireResult;
 
-    switch (acquireResult.first)
+    try
     {
-    case vk::Result::eSuccess:
-        break;
-    case vk::Result::eErrorOutOfDateKHR:
+        acquireResult = _device.acquireNextImage2KHR(acquireNextImageInfo);
+    }
+    catch (vk::OutOfDateKHRError)
+    {
         recreateSwapchain();
-        break;
-    default:
+    }
+    catch (...)
+    {
         throw std::runtime_error("vulkan: failed to acquire next image");
-        break;
     }
 
     _device.resetFences(*_inFlightFences[_activeFrame]);
@@ -217,18 +218,17 @@ void VulkanRenderer::draw()
     presentInfo.setSwapchains(*(_swapchain));
     presentInfo.setImageIndices(acquireResult.second);
 
-    auto presentResult = _presentQueue.presentKHR(presentInfo);
-
-    switch (presentResult)
+    try
     {
-    case vk::Result::eSuccess:
-        break;
-    case vk::Result::eErrorOutOfDateKHR:
+        _presentQueue.presentKHR(presentInfo);
+    }
+    catch (vk::OutOfDateKHRError)
+    {
         recreateSwapchain();
-        break;
-    default:
+    }
+    catch (...)
+    {
         throw std::runtime_error("vulkan: failed to acquire next image");
-        break;
     }
 
     // increment active frame index
@@ -256,18 +256,6 @@ void VulkanRenderer::setCamera(glm::vec3 position, glm::vec3 lookDirection, glm:
     _cameraPosition = position;
 }
 
-void VulkanRenderer::resize(int width, int height)
-{
-}
-
-void VulkanRenderer::minimize()
-{
-}
-
-void VulkanRenderer::maximize()
-{
-}
-
 const vk::Device VulkanRenderer::getDevice() const noexcept
 {
     return (*_device);
@@ -286,7 +274,10 @@ void VulkanRenderer::recordDrawCommands(int activeFrame, const vk::raii::Framebu
     renderPassBeginInfo.setRenderPass(_renderPass);
     renderPassBeginInfo.setFramebuffer(framebuffer);
     renderPassBeginInfo.setRenderArea(vk::Rect2D(vk::Offset2D(0, 0), _swapchainExtent));
-    vk::ClearValue clearValues[2] = { vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f), vk::ClearDepthStencilValue(1.0f, 0.0f) };
+
+    glm::vec3 backgroundColor = glm::vec3(_light.lightData.ambient.x, _light.lightData.ambient.y, _light.lightData.ambient.z) * 0.3f;
+
+    vk::ClearValue clearValues[2] = { vk::ClearColorValue(backgroundColor.x, backgroundColor.y, backgroundColor.z, 1.0f), vk::ClearDepthStencilValue(1.0f, 0.0f) };
     renderPassBeginInfo.setClearValues(clearValues);
 
     _drawCommandBuffers[activeFrame].beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
@@ -332,27 +323,152 @@ void VulkanRenderer::recordDrawCommands(int activeFrame, const vk::raii::Framebu
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    if (ImGui::Button("Toggle light")) {
-        _light.setLightData(glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(4.0f, 1.0f, 1.0f));
-    }
-    if (ImGui::Button("Open File Dialog")) {
-        IGFD::FileDialogConfig config;
-        config.path = ".";
-        ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".glb,.gltf", config);
-    }
-    // display
-    if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey")) {
-        if (ImGuiFileDialog::Instance()->IsOk()) { // action if OK
-            std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
-            std::string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
-            // action
-            std::cout << filePathName << "\t" << filePath << std::endl;
+    const float panelWidth = _swapchainExtent.width * 0.2f; // 20% of screen width
 
-            _requestedScenePath = filePathName;
+    // ImGui layout for the left hand panel
+    {
+        ImGui::SetNextWindowPos(ImVec2(0, 0));
+        ImGui::SetNextWindowSize(ImVec2(panelWidth, _swapchainExtent.height));
+
+        ImGuiWindowFlags windowFlags =
+            ImGuiWindowFlags_NoMove |
+            ImGuiWindowFlags_NoResize |
+            ImGuiWindowFlags_NoCollapse |
+            ImGuiWindowFlags_NoTitleBar;
+
+        ImGui::Begin("Left Hand Panel", nullptr, windowFlags);
+        {
+            ImGui::SeparatorText("File:");
+            if (ImGui::Button("Select file")) {
+                IGFD::FileDialogConfig config;
+                config.path = ".";
+                ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".glb,.gltf", config);
+            }
+            // display
+            if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey", 32, ImVec2(200.0f, 300.0f))) {
+                if (ImGuiFileDialog::Instance()->IsOk()) { // action if OK
+                    std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
+                    std::string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
+                    // action
+                    std::cout << filePathName << "\t" << filePath << std::endl;
+
+                    _requestedScenePath = filePathName;
+                }
+
+                // close
+                ImGuiFileDialog::Instance()->Close();
+            }
+            ImGui::Dummy(ImVec2(0.0f, 10.0f));
+
+            ImGui::SeparatorText("Controls:");
+            ImGui::BulletText("TAB: switch to menu mode");
+            ImGui::Dummy(ImVec2(0.0f, 10.0f));
+
+            ImGui::SeparatorText("Controls for free camera:");
+            ImGui::BulletText("WASD: move camera");
+            ImGui::BulletText("SHIFT & CTRL: move camera up & down");
+            ImGui::BulletText("SCROLL WHEEL: change camera speed");
         }
+        ImGui::End();
+    }
 
-        // close
-        ImGuiFileDialog::Instance()->Close();
+    // Right panel - fixed position
+    {
+        ImGui::SetNextWindowPos(ImVec2(_swapchainExtent.width - panelWidth, 0));
+        ImGui::SetNextWindowSize(ImVec2(panelWidth, _swapchainExtent.height));
+
+        ImGuiWindowFlags windowFlags =
+            ImGuiWindowFlags_NoMove |
+            ImGuiWindowFlags_NoResize |
+            ImGuiWindowFlags_NoCollapse |
+            ImGuiWindowFlags_NoTitleBar;
+
+        ImGui::Begin("Right Hand Panel", nullptr, windowFlags);
+        {
+            // Your right panel content here
+            ImGui::Text("Light Settings:");
+
+            ImGui::Dummy(ImVec2(0.0f, 10.0f));
+            ImGui::SeparatorText("Light #1");
+            ImGui::BeginGroup();
+
+                static ImVec4 color0 = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+                ImGui::ColorEdit3("Color 1", (float*)&color0);
+
+                static float strength0 = 0.5f;
+                ImGui::SliderFloat("Strength 1", &strength0, 0.0f, 10.0f);
+
+                static float distance0 = 1.0f;
+                ImGui::SliderFloat("Distance 1", &distance0, 0.1f, 20.0f);
+                static float azimuthal0 = 0.0f;
+                ImGui::SliderFloat("Azimuthal Angle 1", &azimuthal0, -2 * 3.141592f, 2 * 3.141592f);
+                static float polar0 = 1.5f;
+                ImGui::SliderFloat("Polar Angle 1", &polar0, 0.0f, 3.141592f);
+
+            ImGui::EndGroup();
+
+            ImGui::Dummy(ImVec2(0.0f, 10.0f));
+            ImGui::SeparatorText("Light #2");
+            ImGui::BeginGroup();
+
+                static ImVec4 color1 = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+                ImGui::ColorEdit3("Color 2", (float*)&color1);
+
+                static float strength1 = 0.5f;
+                ImGui::SliderFloat("Strength 2", &strength1, 0.0f, 10.0f);
+
+                static float distance1 = 1.0f;
+                ImGui::SliderFloat("Distance 2", &distance1, 0.1f, 20.0f);
+                static float azimuthal1 = 0.0f;
+                ImGui::SliderFloat("Azimuthal Angle 2", &azimuthal1, -2 * 3.141592f, 2 * 3.141592f);
+                static float polar1 = 1.5f;
+                ImGui::SliderFloat("Polar Angle 2", &polar1, 0.0f, 3.141592f);
+
+            ImGui::EndGroup();
+
+            ImGui::Dummy(ImVec2(0.0f, 10.0f));
+            ImGui::SeparatorText("Light #3");
+            ImGui::BeginGroup();
+
+                static ImVec4 color2 = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+                ImGui::ColorEdit3("Color 3", (float*)&color2);
+
+                static float strength2 = 0.5f;
+                ImGui::SliderFloat("Strength 3", &strength2, 0.0f, 10.0f);
+
+                static float distance2 = 1.0f;
+                ImGui::SliderFloat("Distance 3", &distance2, 0.1f, 20.0f);
+                static float azimuthal2 = 0.0f;
+                ImGui::SliderFloat("Azimuthal Angle 3", &azimuthal2, -2 * 3.141592f, 2 * 3.141592f);
+                static float polar2 = 1.5f;
+                ImGui::SliderFloat("Polar Angle 3", &polar2, 0.0f, 3.141592f);
+
+            ImGui::EndGroup();
+
+            ImGui::Dummy(ImVec2(0.0f, 10.0f));
+            ImGui::SeparatorText("Ambient Light");
+            ImGui::BeginGroup();
+
+                static ImVec4 ambientColor = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+                ImGui::ColorEdit3("Ambient Color", (float*)&ambientColor);
+
+                static float ambientStrength = 0.01f;
+                ImGui::SliderFloat("Ambient Strength", &ambientStrength, 0.0f, 0.1f);
+
+            ImGui::EndGroup();
+
+            _light.lightData.position_0 = glm::vec4(distance0 * sin(polar0) * cos(azimuthal0), distance0 * cos(polar0), distance0 * sin(polar0) * sin(azimuthal0), 0.0f);
+            _light.lightData.flux_0 = glm::vec4(color0.x, color0.y, color0.z, strength0);
+
+            _light.lightData.position_1 = glm::vec4(distance1 * sin(polar1) * cos(azimuthal1), distance1 * cos(polar1), distance1 * sin(polar1) * sin(azimuthal1), 0.0f);
+            _light.lightData.flux_1 = glm::vec4(color1.x, color1.y, color1.z, strength1);
+
+            _light.lightData.position_2 = glm::vec4(distance2 * sin(polar2) * cos(azimuthal2), distance2 * cos(polar2), distance2 * sin(polar2) * sin(azimuthal2), 0.0f);
+            _light.lightData.flux_2 = glm::vec4(color2.x, color2.y, color2.z, strength2);
+
+            _light.lightData.ambient = glm::vec4(ambientColor.x, ambientColor.y, ambientColor.z, ambientStrength);
+        }
+        ImGui::End();
     }
 
     ImGuiIO& io = ImGui::GetIO();
@@ -531,38 +647,32 @@ void VulkanRenderer::copyStagingBuffersToGPUBuffers()
 
 void VulkanRenderer::recreateSwapchain()
 {
-    //(*_device).waitIdle();
+    (*_device).waitIdle();
 
-    //vkb::SwapchainBuilder builder(*_physicalDevice, *_device, *_surface, _graphicsQueueIndex, _presentQueueIndex);
-    //builder.set_old_swapchain(*_swapchain);
+    _framebuffers.clear();
+    _imguiFramebuffers.clear();
+    _imageViews.clear();
+    _swapchain.clear();
 
-    //vkb::Result<vkb::Swapchain> result = builder.build();
-    //if (!result)
-    //{
-    //    throw std::runtime_error("bk-bootstrap: failed to recreate swapchain");
-    //}
+    _depthBuffer = VulkanImage();
 
-    //_imageReadySemaphores.clear();
-    //_renderCompleteSemaphores.clear();
-    //_inFlightFences.clear();
-    //_imageViews.clear();
+    _swapchain = _initilization.createSwapchain(_device, _surface);
+    _swapchainExtent = _initilization.getSwapchainExtent();
+    _swapchainFormat = _initilization.getSwapchainFormat();
 
-    //_swapchain.clear();
+    _imageViews = _initilization.createSwapchainImageViews(_device);
 
-    //vkb::Swapchain bootstrapSwapchain = result.value();
-    //_swapchain = vk::raii::SwapchainKHR(_device, bootstrapSwapchain.swapchain);
+    createDepthBuffer();
 
-    //std::vector<VkImageView> views = bootstrapSwapchain.get_image_views().value(); // get_image_views apparently creates the image views as well
-    //for (int i = 0; i < views.size(); i++)
-    //{
-    //    _imageViews.push_back(vk::raii::ImageView(_device, views[i]));
-    //}
+    _framebuffers = _initilization.createFramebuffers(_device, _renderPass, _imageViews, _depthBuffer.getImageView());
+    _imguiFramebuffers = _initilization.createFramebuffers(_device, _imguiRenderPass, _imageViews);
 
-    //_swapchainExtent = bootstrapSwapchain.extent;
-    //_swapchainFormat = static_cast<vk::Format>(bootstrapSwapchain.image_format);
+    vk::CommandBufferAllocateInfo commandBufferAllocateInfo;
+    commandBufferAllocateInfo.setLevel(vk::CommandBufferLevel::ePrimary);
+    commandBufferAllocateInfo.setCommandPool(_commandPool);
+    commandBufferAllocateInfo.setCommandBufferCount(_framesInFlight);
 
-    //createFramebuffers();
-    //createSynchronisationObjects();
+    _drawCommandBuffers = vk::raii::CommandBuffers(_device, commandBufferAllocateInfo);
 }
 
 void VulkanRenderer::createRenderPass()

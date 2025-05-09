@@ -38,10 +38,12 @@ namespace SVMV
 
         void registerController(Controller* controller);
 
+        void clearHeldKeys();
         void ignoreFirstMouseMovement();
 
         void glfwKeyCallback(int key, int scancode, int action, int mods);
         void glfwCursorPositionCallback(double xpos, double ypos);
+        void glfwScrollCallback(double xoffset, double yoffset);
 
     private:
         std::queue<std::shared_ptr<Input::Event>> _eventQueue;

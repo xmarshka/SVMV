@@ -11,7 +11,7 @@ namespace SVMV
 
         enum class KeyCode : int
         {
-            W, A, S, D, LEFT_CONTROL, LEFT_SHIFT
+            W, A, S, D, LEFT_CONTROL, LEFT_SHIFT, SCROLL_UP, SCROLL_DOWN
         };
 
         enum class KeyState : int

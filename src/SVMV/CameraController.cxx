@@ -118,6 +118,20 @@ void CameraControllerNoclip::InputEvent(std::shared_ptr<Input::Event> inputEvent
                     _toMove -= _up;
                 }
             }
+            if (keyEvent->keyCode == Input::KeyCode::SCROLL_UP)
+            {
+                if (keyEvent->keyState == Input::KeyState::PRESSED)
+                {
+                    _speed += 0.01;
+                }
+            }
+            if (keyEvent->keyCode == Input::KeyCode::SCROLL_DOWN)
+            {
+                if (keyEvent->keyState == Input::KeyState::PRESSED)
+                {
+                    _speed -= 0.01;
+                }
+            }
         }
         else if (inputEvent->getType() == Input::EventType::MOUSE_MOVEMENT)
         {

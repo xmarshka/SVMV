@@ -3,17 +3,16 @@
 using namespace SVMV;
 
 VulkanLight::VulkanLight(
-    glm::vec3 position, glm::vec3 flux, vk::raii::Device* device, VmaAllocator memoryAllocator, const vk::raii::DescriptorSetLayout& lightDescriptorSetLayout,
+    glm::vec4 position, glm::vec4 flux, vk::raii::Device* device, VmaAllocator memoryAllocator, const vk::raii::DescriptorSetLayout& lightDescriptorSetLayout,
     VulkanUtilities::DescriptorAllocator* descriptorAllocator, VulkanDescriptorWriter* descriptorWriter, int framesInFlight
 )
     : _descriptorWriter(descriptorWriter)
-{
-    PointLight lightUniformParameters;
-    lightUniformParameters.position = position;
-    lightUniformParameters.flux = flux;
+{;
+    lightData.position_0 = position;
+    lightData.flux_0 = flux;
 
     _uniformBuffer = VulkanUniformBuffer(device, memoryAllocator, sizeof(ShaderStructures::LightParametersBuffer));
-    _uniformBuffer.setData(&lightUniformParameters, sizeof(ShaderStructures::LightParametersBuffer));
+    _uniformBuffer.setData(&lightData, sizeof(ShaderStructures::LightParametersBuffer));
 
     for (int i = 0; i < framesInFlight; i++)
     {
@@ -34,16 +33,8 @@ const vk::raii::DescriptorSet* VulkanLight::getDescriptorSet(int frameIndex) con
     }
 }
 
-void VulkanLight::setLightData(glm::vec3 position, glm::vec3 flux)
-{
-    PointLight lightUniformParameters;
-    lightUniformParameters.position = position;
-    lightUniformParameters.flux = flux;
-
-    _uniformBuffer.setData(&lightUniformParameters, sizeof(ShaderStructures::LightParametersBuffer));
-}
-
 void VulkanLight::updateLightDescriptor(int frameIndex)
 {
+    _uniformBuffer.setData(&lightData, sizeof(ShaderStructures::LightParametersBuffer));
     _descriptorWriter->writeBuffer(_descriptorSets[frameIndex], _uniformBuffer, 0, 0, sizeof(ShaderStructures::LightParametersBuffer), vk::DescriptorType::eUniformBuffer);
 }

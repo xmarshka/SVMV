@@ -3,8 +3,13 @@
 #define PI 3.1415926538
 
 layout(set = 1, binding = 0) uniform LightParameters {
-    vec4 ws_pos;
-    vec4 flux;
+    vec4 ws_pos_0;
+    vec4 flux_0;
+    vec4 ws_pos_1;
+    vec4 flux_1;
+    vec4 ws_pos_2;
+    vec4 flux_2;
+    vec4 ambient;
 } light_params_buf;
 
 layout(set = 2, binding = 0) uniform MaterialUniformParameters {
@@ -21,12 +26,11 @@ layout(set = 2, binding = 5) uniform sampler2D emissive_tx;
 layout(location = 0) in vec4 col0;
 layout(location = 1) in vec2 uv0;
 layout(location = 2) in vec3 ws_Ng;
-layout(location = 3) in vec3 ws_P; // unused
-layout(location = 4) in vec3 ws_cam_pos; // unused
-//layout(location = 4) in vec3 ts_cam_pos;
-layout(location = 5) in vec3 ts_P;
-layout(location = 6) in vec3 ts_cam_pos;
-layout(location = 7) in vec3 ts_light_pos;
+layout(location = 3) in vec3 ts_P;
+layout(location = 4) in vec3 ts_cam_pos;
+layout(location = 5) in vec3 ts_light_pos_0;
+layout(location = 6) in vec3 ts_light_pos_1;
+layout(location = 7) in vec3 ts_light_pos_2;
 
 layout(location = 0) out vec4 out_col;
 
@@ -80,12 +84,12 @@ void main() {
     vec3 emissive_col = texture(emissive_tx, uv0).rgb;
 
     //vec3 light_pos = vec3(2.0, 0.0, 1.0);
-    vec3 light_col = light_params_buf.flux.rgb;
-    float light_distance = length(ts_light_pos - ts_P);
+    vec3 light_col = light_params_buf.flux_0.rgb * light_params_buf.flux_0.w;
+    float light_distance = length(ts_light_pos_0 - ts_P);
     vec3 radiance = light_col / (light_distance * light_distance + 0.001);
 
     //vec3 ts_L = normalize(ts_light_pos);
-    vec3 ts_L = normalize(ts_light_pos - ts_P);
+    vec3 ts_L = normalize(ts_light_pos_0 - ts_P);
     vec3 ts_V = normalize(ts_cam_pos - ts_P);
     vec3 ts_H = normalize(ts_L + ts_V);
 
@@ -93,7 +97,7 @@ void main() {
     float metallicity = xrm.b;
     vec3 base_col = vec3(texture(base_col_tx, uv0));
 
-    float ambient_factor = 0.01 * (occlusion_factor);
+    vec3 ambient_factor = light_params_buf.ambient.rgb * light_params_buf.ambient.w * (occlusion_factor);
 
     vec3 diffuse = brdf_d_lambert(base_col);
     vec3 specular = brdf_s_cook_torrance(ts_L, ts_V, ts_N, ts_H, roughness * roughness);

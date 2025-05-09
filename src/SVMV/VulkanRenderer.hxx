@@ -36,6 +36,7 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <cmath>
 
 namespace SVMV
 {
@@ -58,10 +59,6 @@ namespace SVMV
         void loadScene(std::shared_ptr<Scene> scene);
 
         void setCamera(glm::vec3 position, glm::vec3 lookDirection, glm::vec3 upDirection, float fieldOfView);
-
-        void resize(int width, int height);
-        void minimize();
-        void maximize();
 
         [[nodiscard]] const vk::Device getDevice() const noexcept;
 
@@ -125,8 +122,6 @@ namespace SVMV
         std::vector<vk::raii::Framebuffer> _framebuffers;
         
         VulkanImage _depthBuffer;
-        VulkanImage _shadowBuffer;
-        vk::raii::Framebuffer _shadowFramebuffer        { nullptr };
 
         std::vector<vk::raii::Semaphore> _imageReadySemaphores;
         std::vector<vk::raii::Semaphore> _renderCompleteSemaphores;

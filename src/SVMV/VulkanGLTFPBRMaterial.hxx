@@ -73,6 +73,8 @@ namespace SVMV
         const vk::raii::PipelineLayout* getPipelineLayout() const;
 
     private:
+        void createDefaultResources();
+
         void processUniformParameters(vk::raii::DescriptorSet& descriptorSet, MaterialResources& resources, std::shared_ptr<Material> material);
         void processTextures(vk::raii::DescriptorSet& descriptorSet, MaterialResources& resources, std::shared_ptr<Material> material);
 
@@ -92,6 +94,13 @@ namespace SVMV
 
         VulkanShader _vertexShader;
         VulkanShader _fragmentShader;
+
+        vk::raii::Sampler _defaultSampler       { nullptr };
+        VulkanImage _defaultBaseColorImage;
+        VulkanImage _defaultNormalImage;
+        VulkanImage _defaultMetallicRoughnessImage;
+        VulkanImage _defaultOcclusionImage;
+        VulkanImage _defaultEmissiveImage;
 
         std::vector<MaterialResources> _resources;
         std::vector<vk::raii::DescriptorSet> _descriptorSets;

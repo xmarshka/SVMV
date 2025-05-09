@@ -64,6 +64,14 @@ void InputHandler::registerController(Controller* controller)
     _controllers.push_back(controller);
 }
 
+void InputHandler::clearHeldKeys()
+{
+    for (auto& keyHeld : _keyHeldMap)
+    {
+        keyHeld.second = false;
+    }
+}
+
 void InputHandler::ignoreFirstMouseMovement()
 {
     _ignoreFirstMouseMovement = true;
@@ -186,4 +194,16 @@ void InputHandler::glfwCursorPositionCallback(double xpos, double ypos)
 
     _previousMousePosition.x = xpos;
     _previousMousePosition.y = ypos;
+}
+
+void InputHandler::glfwScrollCallback(double xoffset, double yoffset)
+{
+    if (yoffset > 0.0)
+    {
+        _eventQueue.push(std::make_shared<Input::KeyEvent>(Input::KeyCode::SCROLL_UP, Input::KeyState::PRESSED));
+    }
+    else
+    {
+        _eventQueue.push(std::make_shared<Input::KeyEvent>(Input::KeyCode::SCROLL_DOWN, Input::KeyState::PRESSED));
+    }
 }

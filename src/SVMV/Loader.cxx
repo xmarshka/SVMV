@@ -428,7 +428,7 @@ std::vector<std::shared_ptr<Primitive>> Loader::details::processPrimitives(std::
         }
         else
         {
-            std::cout << "Attempting to load a primitive with missing position, normal or texcoord_0 attribute. Skipping primitive.\n";
+            std::cout << "ERROR: Attempting to load a primitive with missing position, normal or texcoord_0 attribute.\n";
         }
     }
 

@@ -67,6 +67,8 @@ GLTFPBRMaterial::GLTFPBRMaterial(
     _pipelineLayout = vk::raii::PipelineLayout(*_device, pipelineLayoutCreateInfo);
 
     _pipeline = VulkanUtilities::createPipeline(*device, _pipelineLayout, renderPass, _vertexShader.getModule(), _fragmentShader.getModule());
+
+    createDefaultResources();
 }
 
 GLTFPBRMaterial::GLTFPBRMaterial(GLTFPBRMaterial&& other) noexcept
@@ -86,6 +88,13 @@ GLTFPBRMaterial::GLTFPBRMaterial(GLTFPBRMaterial&& other) noexcept
 
     this->_resources = std::move(other._resources);
     this->_descriptorSets = std::move(other._descriptorSets);
+
+    this->_defaultSampler = std::move(other._defaultSampler);
+    this->_defaultBaseColorImage = std::move(other._defaultBaseColorImage);
+    this->_defaultNormalImage = std::move(other._defaultNormalImage);
+    this->_defaultMetallicRoughnessImage = std::move(other._defaultMetallicRoughnessImage);
+    this->_defaultOcclusionImage = std::move(other._defaultOcclusionImage);
+    this->_defaultEmissiveImage = std::move(other._defaultEmissiveImage);
 
     other._device = nullptr;
     other._immediateSubmit = nullptr;
@@ -112,6 +121,13 @@ GLTFPBRMaterial& GLTFPBRMaterial::operator=(GLTFPBRMaterial&& other) noexcept
 
         this->_resources = std::move(other._resources);
         this->_descriptorSets = std::move(other._descriptorSets);
+
+        this->_defaultSampler = std::move(other._defaultSampler);
+        this->_defaultBaseColorImage = std::move(other._defaultBaseColorImage);
+        this->_defaultNormalImage = std::move(other._defaultNormalImage);
+        this->_defaultMetallicRoughnessImage = std::move(other._defaultMetallicRoughnessImage);
+        this->_defaultOcclusionImage = std::move(other._defaultOcclusionImage);
+        this->_defaultEmissiveImage = std::move(other._defaultEmissiveImage);
 
         other._device = nullptr;
         other._immediateSubmit = nullptr;
@@ -144,6 +160,69 @@ const vk::raii::Pipeline* GLTFPBRMaterial::getPipeline() const
 const vk::raii::PipelineLayout* GLTFPBRMaterial::getPipelineLayout() const
 {
     return &_pipelineLayout;
+}
+
+void GLTFPBRMaterial::createDefaultResources()
+{
+    uint32_t dimension = 32; // arbitrary small dimensions
+
+    std::unique_ptr<std::byte[]> data = std::make_unique_for_overwrite<std::byte[]>(dimension * dimension * 4); // RGBA
+
+    for (int i = 0; i < dimension * dimension * 4; i++)
+    {
+        reinterpret_cast<uint8_t*>(data.get())[i] = 255;
+    }
+
+    _defaultBaseColorImage = VulkanImage(
+        _device, _immediateSubmit, _memoryAllocator, vk::Extent2D{ dimension, dimension },
+        vk::Format::eR8G8B8A8Srgb, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, data.get(),
+        dimension* dimension * 4
+    );
+
+    _defaultMetallicRoughnessImage = VulkanImage(
+        _device, _immediateSubmit, _memoryAllocator, vk::Extent2D{ dimension, dimension },
+        vk::Format::eR8G8B8A8Unorm, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, data.get(),
+        dimension* dimension * 4
+    );
+
+    _defaultMetallicRoughnessImage = VulkanImage(
+        _device, _immediateSubmit, _memoryAllocator, vk::Extent2D{ dimension, dimension },
+        vk::Format::eR8G8B8A8Unorm, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, data.get(),
+        dimension* dimension * 4
+    );
+
+    _defaultOcclusionImage = VulkanImage(
+        _device, _immediateSubmit, _memoryAllocator, vk::Extent2D{ dimension, dimension },
+        vk::Format::eR8G8B8A8Unorm, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, data.get(),
+        dimension* dimension * 4
+    );
+
+    for (int i = 0; i < dimension * dimension * 4; i++)
+    {
+        reinterpret_cast<uint8_t*>(data.get())[i] = 0;
+    }
+
+    _defaultEmissiveImage = VulkanImage(
+        _device, _immediateSubmit, _memoryAllocator, vk::Extent2D{ dimension, dimension },
+        vk::Format::eR8G8B8A8Unorm, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, data.get(),
+        dimension* dimension * 4
+    );
+
+    vk::SamplerCreateInfo samplerCreateInfo;
+    samplerCreateInfo.setMagFilter(vk::Filter::eLinear);
+    samplerCreateInfo.setMinFilter(vk::Filter::eLinear);
+    samplerCreateInfo.setAddressModeU(vk::SamplerAddressMode::eRepeat);
+    samplerCreateInfo.setAddressModeV(vk::SamplerAddressMode::eRepeat);
+    samplerCreateInfo.setAddressModeW(vk::SamplerAddressMode::eRepeat);
+    samplerCreateInfo.setAnisotropyEnable(vk::False);
+    samplerCreateInfo.setMaxAnisotropy(4);
+    samplerCreateInfo.setBorderColor(vk::BorderColor::eIntOpaqueBlack);
+    samplerCreateInfo.setUnnormalizedCoordinates(vk::False);
+    samplerCreateInfo.setCompareEnable(vk::False);
+    samplerCreateInfo.setCompareOp(vk::CompareOp::eAlways);
+    samplerCreateInfo.setMipmapMode(vk::SamplerMipmapMode::eLinear);
+
+    _defaultSampler = vk::raii::Sampler(*_device, samplerCreateInfo);
 }
 
 void GLTFPBRMaterial::processUniformParameters(vk::raii::DescriptorSet& descriptorSet, MaterialResources& resources, std::shared_ptr<Material> material)
@@ -180,8 +259,12 @@ void GLTFPBRMaterial::processTextures(vk::raii::DescriptorSet& descriptorSet, Ma
         }
         catch (std::bad_cast)
         {
-            // TODO: set some default base color texture and sampler
+            _descriptorWriter->writeImageAndSampler(descriptorSet, _defaultBaseColorImage, vk::ImageLayout::eShaderReadOnlyOptimal, _defaultSampler, 1);
         }
+    }
+    else
+    {
+        _descriptorWriter->writeImageAndSampler(descriptorSet, _defaultBaseColorImage, vk::ImageLayout::eShaderReadOnlyOptimal, _defaultSampler, 1);
     }
 
     if (material->properties.contains("normalTexture"))
@@ -193,8 +276,12 @@ void GLTFPBRMaterial::processTextures(vk::raii::DescriptorSet& descriptorSet, Ma
         }
         catch (std::bad_cast)
         {
-            // TODO: set some default base color texture and sampler
+            _descriptorWriter->writeImageAndSampler(descriptorSet, _defaultNormalImage, vk::ImageLayout::eShaderReadOnlyOptimal, _defaultSampler, 2);
         }
+    }
+    else
+    {
+        _descriptorWriter->writeImageAndSampler(descriptorSet, _defaultNormalImage, vk::ImageLayout::eShaderReadOnlyOptimal, _defaultSampler, 2);
     }
 
     if (material->properties.contains("metallicRoughnessTexture"))
@@ -206,8 +293,12 @@ void GLTFPBRMaterial::processTextures(vk::raii::DescriptorSet& descriptorSet, Ma
         }
         catch (std::bad_cast)
         {
-            // TODO: set some default base color texture and sampler
+            _descriptorWriter->writeImageAndSampler(descriptorSet, _defaultMetallicRoughnessImage, vk::ImageLayout::eShaderReadOnlyOptimal, _defaultSampler, 3);
         }
+    }
+    else
+    {
+        _descriptorWriter->writeImageAndSampler(descriptorSet, _defaultMetallicRoughnessImage, vk::ImageLayout::eShaderReadOnlyOptimal, _defaultSampler, 3);
     }
 
     if (material->properties.contains("occlusionTexture"))
@@ -219,8 +310,12 @@ void GLTFPBRMaterial::processTextures(vk::raii::DescriptorSet& descriptorSet, Ma
         }
         catch (std::bad_cast)
         {
-            // TODO: set some default base color texture and sampler
+            _descriptorWriter->writeImageAndSampler(descriptorSet, _defaultOcclusionImage, vk::ImageLayout::eShaderReadOnlyOptimal, _defaultSampler, 4);
         }
+    }
+    else
+    {
+        _descriptorWriter->writeImageAndSampler(descriptorSet, _defaultOcclusionImage, vk::ImageLayout::eShaderReadOnlyOptimal, _defaultSampler, 4);
     }
 
     if (material->properties.contains("emissiveTexture"))
@@ -232,8 +327,12 @@ void GLTFPBRMaterial::processTextures(vk::raii::DescriptorSet& descriptorSet, Ma
         }
         catch (std::bad_cast)
         {
-            // TODO: set some default base color texture and sampler
+            _descriptorWriter->writeImageAndSampler(descriptorSet, _defaultEmissiveImage, vk::ImageLayout::eShaderReadOnlyOptimal, _defaultSampler, 5);
         }
+    }
+    else
+    {
+        _descriptorWriter->writeImageAndSampler(descriptorSet, _defaultEmissiveImage, vk::ImageLayout::eShaderReadOnlyOptimal, _defaultSampler, 5);
     }
 }
 
@@ -245,7 +344,6 @@ void GLTFPBRMaterial::processCombinedImageSampler(vk::raii::DescriptorSet& descr
         textureProperty->data->size
     );
 
-    // TODO: get this information from the Texture object properties instead
     vk::SamplerCreateInfo samplerCreateInfo;
     samplerCreateInfo.setMagFilter(vk::Filter::eLinear);
     samplerCreateInfo.setMinFilter(vk::Filter::eLinear);
