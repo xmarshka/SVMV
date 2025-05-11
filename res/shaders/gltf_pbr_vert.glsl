@@ -37,8 +37,8 @@ layout(push_constant) uniform PushConstants {
     NormalMatrix normal_mat_buf;
 } pc;
 
-layout(location = 0) out vec4 out_col0;
-layout(location = 1) out vec2 out_uv0;
+layout(location = 0) out vec4 out_col_0;
+layout(location = 1) out vec2 out_uv_0;
 layout(location = 2) out vec3 out_ws_Ng;
 
 layout(location = 3) out vec3 out_ts_P;
@@ -52,7 +52,7 @@ void main() {
 
     gl_Position = cam_mats_buf.view_proj_mat * pc.model_mat_buf.data[0] * vec4(ms_P, 1.0);
 
-    out_uv0 = vec2(pc.uv0_buf.data[gl_VertexIndex * 2], pc.uv0_buf.data[gl_VertexIndex * 2 + 1]);
+    out_uv_0 = vec2(pc.uv0_buf.data[gl_VertexIndex * 2], pc.uv0_buf.data[gl_VertexIndex * 2 + 1]);
 
     out_ws_Ng = vec3(0.0, 0.0, 0.0);
 
@@ -73,9 +73,9 @@ void main() {
     out_ts_light_pos_1 = ts_mat * light_params_buf.ws_pos_1.xyz;
     out_ts_light_pos_2 = ts_mat * light_params_buf.ws_pos_2.xyz;
 
-    out_col0 = vec4(1.0, 1.0, 1.0, 1.0);
+    out_col_0 = vec4(1.0, 1.0, 1.0, 1.0);
 
     if (uvec2(pc.col0_buf) != uvec2(0)) {
-        out_col0 = vec4(pc.col0_buf.data[gl_VertexIndex * 4], pc.col0_buf.data[gl_VertexIndex * 4 + 1], pc.col0_buf.data[gl_VertexIndex * 4 + 2],  pc.col0_buf.data[gl_VertexIndex * 4 + 3]);
+        out_col_0 = vec4(pc.col0_buf.data[gl_VertexIndex * 4], pc.col0_buf.data[gl_VertexIndex * 4 + 1], pc.col0_buf.data[gl_VertexIndex * 4 + 2],  pc.col0_buf.data[gl_VertexIndex * 4 + 3]);
     }
 }

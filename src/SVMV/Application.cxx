@@ -4,7 +4,6 @@ using namespace SVMV;
 
 Application::Application(int width, int height, const std::string& name)
 {
-    //glfwSetFramebufferSizeCallback(_window.getWindow(), resizedCallback);
     glfwSetWindowIconifyCallback(_window.getWindow(), minimizedCallback);
     glfwSetKeyCallback(_window.getWindow(), keyCallback);
     glfwSetCursorPosCallback(_window.getWindow(), cursorPositionCallback);
