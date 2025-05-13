@@ -5,7 +5,7 @@ A glTF model viewer focused on rendering properties of the glTF PBR material mod
 ![Rendered "Damaged Helmet" model](screenshots/helmet_full.PNG)
 ![Rendered "Corset" model](screenshots/corset_full.PNG)
 
-The application allows the user to load glTF file containing models intended for PBR and see the rendered model lit by a monochrome ambient light and three orbiting point lights.
+The application allows the user to load glTF files containing models intended for physically based rendering and see the rendered model lit by a monochrome ambient light and three orbiting point lights.
 
 The shading model of the renderer adheres to the [glTF 2.0 specification](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html) and is based on the metallic-roughness model. Based on the Cook-Torrance model, its components are:
 
@@ -52,7 +52,7 @@ Included in the Releases section is a prebuilt executable of the application, al
  - [Damaged Helmet](https://github.com/KhronosGroup/glTF-Sample-Models/tree/main/2.0/DamagedHelmet) by theblueturtle_
  - [Water Bottle](https://github.com/KhronosGroup/glTF-Sample-Models/tree/main/2.0/WaterBottle)
 
-A batch file exists for each of the above mentioned models which runs the application and loads each of the models.
+A batch file exists for each of the above mentioned models which runs the application and loads its associated model.
 
 ## Building
 
