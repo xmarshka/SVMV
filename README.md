@@ -11,7 +11,7 @@ The shading model of the renderer adheres to the [glTF 2.0 specification](https:
 
  - Trowbridge/Reitz normal distribution function
  - Smith-GGX geometry function
- - Schlick-GGX fresnel function
+ - Fresnel-Schlick function
 
  Supported material properties are:
 
