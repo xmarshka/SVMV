@@ -9,7 +9,7 @@ The application allows the user to load glTF files containing models intended fo
 
 The shading model of the renderer adheres to the [glTF 2.0 specification](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html) and is based on the metallic-roughness model. Based on the Cook-Torrance model, its components are:
 
- - Trowbridge/Reitz normal distribution function
+ - Trowbridge/Reitz/GGX normal distribution function
  - Smith-GGX geometry function
  - Fresnel-Schlick function
 
