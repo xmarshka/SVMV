@@ -4,7 +4,8 @@
 
 A glTF model viewer focused on rendering properties of the glTF PBR material model. Written in C++ using the Vulkan API and targeting the Microsoft Windows operating system (version 10+).
 
-![Rendered "Corset" model](/screenshots/corset_full.PNG "Rendered "Corset" model")
+![Rendered "Damaged Helmet" model](screenshots/helmet_full.PNG)
+![Rendered "Corset" model](screenshots/corset_full.PNG)
 
 The application allows the user to load glTF file containing models intended for PBR and see the rendered model lit by a monochrome ambient light and three orbiting point lights.
 
@@ -73,5 +74,4 @@ Necesarry to build the application are the above mentioned libraries, a Windows 
 
 ---
 
-![Rendered "Damaged Helmet" model](/screenshots/helmet_full.PNG "Rendered "Damaged Helmet" model")
-![Rendered "Antique Camera" model](/screenshots/camera_full.PNG "Rendered "Antique Camera" model")
+![Rendered "Antique Camera" model](screenshots/camera_full.PNG)
