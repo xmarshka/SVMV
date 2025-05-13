@@ -129,7 +129,10 @@ void CameraControllerNoclip::InputEvent(std::shared_ptr<Input::Event> inputEvent
             {
                 if (keyEvent->keyState == Input::KeyState::PRESSED)
                 {
-                    _speed -= 0.01;
+                    if (_speed > 0.0)
+                    {
+                        _speed -= 0.01;
+                    }
                 }
             }
         }

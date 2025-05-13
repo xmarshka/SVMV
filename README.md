@@ -61,6 +61,7 @@ Necesarry to build the application are the above mentioned libraries, a Windows 
 1. Clone the repository
 2. Generate build files using CMake (ensure all necessary libraries are acquired)
 3. Open the generated build files and compile the binaries
+4. Include the shader files (`gltf_pbr_frag.glsl` and `gltf_pbr_vert.glsl`) from the `res` directory next to the executable
 
 ---
 
