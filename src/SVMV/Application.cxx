@@ -2,7 +2,7 @@
 
 using namespace SVMV;
 
-Application::Application(int width, int height, const std::string& name)
+Application::Application(int width, int height, const std::string& name, const std::string& fileToLoad)
 {
     glfwSetWindowIconifyCallback(_window.getWindow(), minimizedCallback);
     glfwSetKeyCallback(_window.getWindow(), keyCallback);
@@ -14,7 +14,17 @@ Application::Application(int width, int height, const std::string& name)
     _inputHandler.registerController(&_cameraController);
     _inputHandler.ignoreFirstMouseMovement();
 
-    _renderer.loadScene(Loader::loadScene(RESOURCE_DIR"/models/Corset.glb"));
+    if (!fileToLoad.empty())
+    {
+        try
+        {
+            _renderer.loadScene(Loader::loadScene(fileToLoad));
+        }
+        catch (...)
+        {
+            std::cout << "Error loading glTF file: " << fileToLoad << "; skipping model." << std::endl;
+        }
+    }
 
     loop();
 }
@@ -86,7 +96,10 @@ void Application::keyCallback(GLFWwindow* window, int key, int scancode, int act
     }
     else
     {
-        ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
+        if (key != GLFW_KEY_TAB)
+        {
+            ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
+        }
     }
 }
 

@@ -49,8 +49,7 @@ set(SVMV_INCLUDES
 	${THIRDPARTY_DIR}/imgui/imstb_rectpack.h
 	${THIRDPARTY_DIR}/imgui/imstb_textedit.h
 	${THIRDPARTY_DIR}/imgui/imstb_truetype.h
-	${THIRDPARTY_DIR}/ImGuiFileDialog/ImGuiFileDialog.h
-	${THIRDPARTY_DIR}/stb/stb_image.h)
+	${THIRDPARTY_DIR}/ImGuiFileDialog/ImGuiFileDialog.h)
 
 set(SVMV_SOURCES
 	${SRC_DIR}/main.cxx

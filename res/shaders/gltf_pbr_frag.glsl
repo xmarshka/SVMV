@@ -13,8 +13,9 @@ layout(set = 1, binding = 0) uniform LightParameters {
 } light_params_buf;
 
 layout(set = 2, binding = 0) uniform MaterialUniformParameters {
-    vec4 baseColorFactor;
-    vec4 roughnessMetallicFactors;
+    vec4 base_col_factor;
+    vec4 roughness_metallic_normal_factor;
+    vec4 emissive_factor;
 } mat_param_buf;
 
 layout(set = 2, binding = 1) uniform sampler2D base_col_tx;
@@ -25,7 +26,7 @@ layout(set = 2, binding = 5) uniform sampler2D emissive_tx;
 
 layout(location = 0) in vec4 col_0;
 layout(location = 1) in vec2 uv_0;
-layout(location = 2) in vec3 ws_Ng;
+layout(location = 2) in vec3 ts_Ng;
 layout(location = 3) in vec3 ts_P;
 layout(location = 4) in vec3 ts_cam_pos;
 layout(location = 5) in vec3 ts_light_pos_0;
@@ -76,11 +77,20 @@ vec3 brdf_d_lambert(in vec3 base_col) {
 }
 
 void main() {
-    vec3 ts_N = normalize(texture(normal_tx, uv_0).rgb * 2.0 - 1.0);
+    vec3 ts_N = vec3(0.0);
+
+    if (mat_param_buf.roughness_metallic_normal_factor.r == 0.0)
+    {
+        ts_N = normalize(texture(normal_tx, uv_0).rgb * 2.0 - 1.0);
+    }
+    else
+    {
+        ts_N = ts_Ng;
+    }
 
     vec3 xrm = texture(metal_rough_tx, uv_0).rgb;
     float occlusion_factor = texture(occlusion_tx, uv_0).r;
-    vec3 emissive_col = texture(emissive_tx, uv_0).rgb;
+    vec3 emissive_col = texture(emissive_tx, uv_0).rgb * mat_param_buf.emissive_factor.rgb;
 
     vec3 light_col_0 = light_params_buf.flux_0.rgb * light_params_buf.flux_0.w;
     float light_distance_0 = length(ts_light_pos_0 - ts_P);
@@ -105,9 +115,9 @@ void main() {
     vec3 ts_L_2 = normalize(ts_light_pos_2 - ts_P);
     vec3 ts_H_2 = normalize(ts_L_2 + ts_V);
 
-    float roughness = xrm.g;
-    float metallicity = xrm.b;
-    vec3 base_col = vec3(texture(base_col_tx, uv_0));
+    float roughness = xrm.g * mat_param_buf.roughness_metallic_normal_factor.g;
+    float metalness = xrm.b * mat_param_buf.roughness_metallic_normal_factor.b;
+    vec3 base_col = vec3(texture(base_col_tx, uv_0)) * mat_param_buf.base_col_factor.rgb;
 
     vec3 ambient_factor = light_params_buf.ambient.rgb * light_params_buf.ambient.w * (occlusion_factor);
 
@@ -138,18 +148,14 @@ void main() {
     vec3 col_dielectric_2 = f_d_dielectric_2 * diffuse + f_s_dielectric_2 * specular_2;
     vec3 col_metallic_2 = f_s_metallic_2 * specular_2;
 
-    vec3 final_col_0 = mix(col_dielectric_0, col_metallic_0, metallicity);
-    vec3 final_col_1 = mix(col_dielectric_1, col_metallic_1, metallicity);
-    vec3 final_col_2 = mix(col_dielectric_2, col_metallic_2, metallicity);
-
-    //out_col = vec4(ambient_factor * base_col + final_col * radiance * max(dot(ts_N, ts_L), 0.0) + emissive_col, 1.0);
+    vec3 final_col_0 = mix(col_dielectric_0, col_metallic_0, metalness);
+    vec3 final_col_1 = mix(col_dielectric_1, col_metallic_1, metalness);
+    vec3 final_col_2 = mix(col_dielectric_2, col_metallic_2, metalness);
 
     out_col = vec4(ambient_factor * base_col, 1.0);
-    out_col = out_col + vec4(final_col_0 * radiance_0 * max(dot(ts_N, ts_L_0), 0.0), 1.0);
-    out_col = out_col + vec4(final_col_1 * radiance_1 * max(dot(ts_N, ts_L_1), 0.0), 1.0);
-    out_col = out_col + vec4(final_col_2 * radiance_2 * max(dot(ts_N, ts_L_2), 0.0), 1.0);
-    out_col = out_col + vec4(emissive_col, 1.0);
+    out_col = out_col + vec4(final_col_0 * radiance_0 * max(dot(ts_N, ts_L_0), 0.0), 0.0);
+    out_col = out_col + vec4(final_col_1 * radiance_1 * max(dot(ts_N, ts_L_1), 0.0), 0.0);
+    out_col = out_col + vec4(final_col_2 * radiance_2 * max(dot(ts_N, ts_L_2), 0.0), 0.0);
+    out_col = max(out_col, vec4(emissive_col, 1.0));
     out_col = out_col * col_0;
-
-    //out_col = vec4(xrm.b, xrm.b, xrm.b, 1.0);
 }

@@ -149,7 +149,15 @@ void VulkanRenderer::draw()
 {
     if (!_requestedScenePath.empty())
     {
-        loadScene(Loader::loadScene(_requestedScenePath));
+        try
+        {
+            loadScene(Loader::loadScene(_requestedScenePath));
+        }
+        catch (...)
+        {
+            std::cout << "Error loading glTF file: " << _requestedScenePath << "; skipping model." << std::endl;
+        }
+
         _requestedScenePath.clear();
     }
 
@@ -267,9 +275,6 @@ void VulkanRenderer::recordDrawCommands(int activeFrame, const vk::raii::Framebu
 
     _drawCommandBuffers[activeFrame].begin(vk::CommandBufferBeginInfo());
 
-    // TODO:    shadow mapping render pass
-    //          barriers (for the image?)
-
     vk::RenderPassBeginInfo renderPassBeginInfo;
     renderPassBeginInfo.setRenderPass(_renderPass);
     renderPassBeginInfo.setFramebuffer(framebuffer);
@@ -325,7 +330,7 @@ void VulkanRenderer::recordDrawCommands(int activeFrame, const vk::raii::Framebu
 
     const float panelWidth = _swapchainExtent.width * 0.2f; // 20% of screen width
 
-    // ImGui layout for the left hand panel
+    // imgui layout for the left hand panel
     {
         ImGui::SetNextWindowPos(ImVec2(0, 0));
         ImGui::SetNextWindowSize(ImVec2(panelWidth, _swapchainExtent.height));
@@ -344,18 +349,14 @@ void VulkanRenderer::recordDrawCommands(int activeFrame, const vk::raii::Framebu
                 config.path = ".";
                 ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".glb,.gltf", config);
             }
-            // display
             if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey", 32, ImVec2(200.0f, 300.0f))) {
-                if (ImGuiFileDialog::Instance()->IsOk()) { // action if OK
+                if (ImGuiFileDialog::Instance()->IsOk()) {
                     std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
                     std::string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
-                    // action
-                    std::cout << filePathName << "\t" << filePath << std::endl;
 
                     _requestedScenePath = filePathName;
                 }
 
-                // close
                 ImGuiFileDialog::Instance()->Close();
             }
             ImGui::Dummy(ImVec2(0.0f, 10.0f));
@@ -372,7 +373,7 @@ void VulkanRenderer::recordDrawCommands(int activeFrame, const vk::raii::Framebu
         ImGui::End();
     }
 
-    // Right panel - fixed position
+    // imgui layout for the right hand panel
     {
         ImGui::SetNextWindowPos(ImVec2(_swapchainExtent.width - panelWidth, 0));
         ImGui::SetNextWindowSize(ImVec2(panelWidth, _swapchainExtent.height));
@@ -385,22 +386,33 @@ void VulkanRenderer::recordDrawCommands(int activeFrame, const vk::raii::Framebu
 
         ImGui::Begin("Right Hand Panel", nullptr, windowFlags);
         {
-            // Your right panel content here
             ImGui::Text("Light Settings:");
+
+            ImGui::Dummy(ImVec2(0.0f, 10.0f));
+            ImGui::SeparatorText("Light Orbit Center");
+            ImGui::BeginGroup();
+
+            float sensitivity = 0.02f;
+            static ImVec4 lightOrbitCenter = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
+            ImGui::DragFloat("X", &lightOrbitCenter.x, sensitivity);
+            ImGui::DragFloat("Y", &lightOrbitCenter.y, sensitivity);
+            ImGui::DragFloat("Z", &lightOrbitCenter.z, sensitivity);
+
+            ImGui::EndGroup();
 
             ImGui::Dummy(ImVec2(0.0f, 10.0f));
             ImGui::SeparatorText("Light #1");
             ImGui::BeginGroup();
 
-                static ImVec4 color0 = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+                static ImVec4 color0 = ImVec4(103.0f / 255.0f, 18.0f / 255.0f, 211.0f / 255.0f, 1.0f);
                 ImGui::ColorEdit3("Color 1", (float*)&color0);
 
-                static float strength0 = 0.5f;
+                static float strength0 = 3.5f;
                 ImGui::SliderFloat("Strength 1", &strength0, 0.0f, 10.0f);
 
                 static float distance0 = 1.0f;
                 ImGui::SliderFloat("Distance 1", &distance0, 0.1f, 20.0f);
-                static float azimuthal0 = 0.0f;
+                static float azimuthal0 = 0.514f;
                 ImGui::SliderFloat("Azimuthal Angle 1", &azimuthal0, -2 * 3.141592f, 2 * 3.141592f);
                 static float polar0 = 1.5f;
                 ImGui::SliderFloat("Polar Angle 1", &polar0, 0.0f, 3.141592f);
@@ -411,17 +423,17 @@ void VulkanRenderer::recordDrawCommands(int activeFrame, const vk::raii::Framebu
             ImGui::SeparatorText("Light #2");
             ImGui::BeginGroup();
 
-                static ImVec4 color1 = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+                static ImVec4 color1 = ImVec4(201.0f / 255.0f, 7.0f / 255.0f, 7.0f / 255.0f, 1.0f);
                 ImGui::ColorEdit3("Color 2", (float*)&color1);
 
-                static float strength1 = 0.5f;
+                static float strength1 = 2.0f;
                 ImGui::SliderFloat("Strength 2", &strength1, 0.0f, 10.0f);
 
                 static float distance1 = 1.0f;
                 ImGui::SliderFloat("Distance 2", &distance1, 0.1f, 20.0f);
-                static float azimuthal1 = 0.0f;
+                static float azimuthal1 = -0.22f;
                 ImGui::SliderFloat("Azimuthal Angle 2", &azimuthal1, -2 * 3.141592f, 2 * 3.141592f);
-                static float polar1 = 1.5f;
+                static float polar1 = 1.977f;
                 ImGui::SliderFloat("Polar Angle 2", &polar1, 0.0f, 3.141592f);
 
             ImGui::EndGroup();
@@ -430,15 +442,15 @@ void VulkanRenderer::recordDrawCommands(int activeFrame, const vk::raii::Framebu
             ImGui::SeparatorText("Light #3");
             ImGui::BeginGroup();
 
-                static ImVec4 color2 = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+                static ImVec4 color2 = ImVec4(37.0f / 255.0f, 200.0f / 255.0f, 42.0f / 255.0f, 1.0f);
                 ImGui::ColorEdit3("Color 3", (float*)&color2);
 
-                static float strength2 = 0.5f;
+                static float strength2 = 1.67f;
                 ImGui::SliderFloat("Strength 3", &strength2, 0.0f, 10.0f);
 
                 static float distance2 = 1.0f;
                 ImGui::SliderFloat("Distance 3", &distance2, 0.1f, 20.0f);
-                static float azimuthal2 = 0.0f;
+                static float azimuthal2 = 1.39f;
                 ImGui::SliderFloat("Azimuthal Angle 3", &azimuthal2, -2 * 3.141592f, 2 * 3.141592f);
                 static float polar2 = 1.5f;
                 ImGui::SliderFloat("Polar Angle 3", &polar2, 0.0f, 3.141592f);
@@ -449,7 +461,7 @@ void VulkanRenderer::recordDrawCommands(int activeFrame, const vk::raii::Framebu
             ImGui::SeparatorText("Ambient Light");
             ImGui::BeginGroup();
 
-                static ImVec4 ambientColor = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+                static ImVec4 ambientColor = ImVec4(157.0f / 255.0f, 223.0f / 255.0f, 250.0f / 255.0f, 1.0f);
                 ImGui::ColorEdit3("Ambient Color", (float*)&ambientColor);
 
                 static float ambientStrength = 0.01f;
@@ -457,13 +469,13 @@ void VulkanRenderer::recordDrawCommands(int activeFrame, const vk::raii::Framebu
 
             ImGui::EndGroup();
 
-            _light.lightData.position_0 = glm::vec4(distance0 * sin(polar0) * cos(azimuthal0), distance0 * cos(polar0), distance0 * sin(polar0) * sin(azimuthal0), 0.0f);
+            _light.lightData.position_0 = glm::vec4(lightOrbitCenter.x + distance0 * sin(polar0) * cos(azimuthal0), lightOrbitCenter.y + distance0 * cos(polar0), lightOrbitCenter.z + distance0 * sin(polar0) * sin(azimuthal0), 0.0f);
             _light.lightData.flux_0 = glm::vec4(color0.x, color0.y, color0.z, strength0);
 
-            _light.lightData.position_1 = glm::vec4(distance1 * sin(polar1) * cos(azimuthal1), distance1 * cos(polar1), distance1 * sin(polar1) * sin(azimuthal1), 0.0f);
+            _light.lightData.position_1 = glm::vec4(lightOrbitCenter.x + distance1 * sin(polar1) * cos(azimuthal1), lightOrbitCenter.y + distance1 * cos(polar1), lightOrbitCenter.z + distance1 * sin(polar1) * sin(azimuthal1), 0.0f);
             _light.lightData.flux_1 = glm::vec4(color1.x, color1.y, color1.z, strength1);
 
-            _light.lightData.position_2 = glm::vec4(distance2 * sin(polar2) * cos(azimuthal2), distance2 * cos(polar2), distance2 * sin(polar2) * sin(azimuthal2), 0.0f);
+            _light.lightData.position_2 = glm::vec4(lightOrbitCenter.x + distance2 * sin(polar2) * cos(azimuthal2), lightOrbitCenter.y + distance2 * cos(polar2), lightOrbitCenter.z + distance2 * sin(polar2) * sin(azimuthal2), 0.0f);
             _light.lightData.flux_2 = glm::vec4(color2.x, color2.y, color2.z, strength2);
 
             _light.lightData.ambient = glm::vec4(ambientColor.x, ambientColor.y, ambientColor.z, ambientStrength);

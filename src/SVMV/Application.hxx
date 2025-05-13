@@ -17,14 +17,14 @@ namespace SVMV
         VulkanRenderer _renderer{ 1440, 1440, "SVMV", 3, _window };
 
         InputHandler _inputHandler;
-        CameraControllerNoclip _cameraController{ true, 0.3f, 3.06f, glm::vec3(0.0f, 0.0f, 0.5f), 0.0f, -90.0f };
+        CameraControllerNoclip _cameraController{ true, 0.3f, 3.0f, glm::vec3(1.22f, 0.0f, 2.14f), -0.16f, -115.0f }; // true, 0.3f, 3.06f, glm::vec3(1.22f, 0.0f, 2.14f), -0.16f, -115.0f
 
         bool _inMenu{ false };
         bool _minimized{ false };
 
     public:
         Application() = delete;
-        Application(int width, int height, const std::string& name);
+        Application(int width, int height, const std::string& name, const std::string& fileToLoad);
 
         Application(const Application&) = delete;
         Application& operator=(const Application&) = delete;

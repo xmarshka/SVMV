@@ -16,7 +16,7 @@ GLTFPBRMaterial::GLTFPBRMaterial(
     descriptorSetLayoutBingings[0].setBinding(0);
     descriptorSetLayoutBingings[0].setDescriptorCount(1);
     descriptorSetLayoutBingings[0].setDescriptorType(vk::DescriptorType::eUniformBuffer);
-    descriptorSetLayoutBingings[0].setStageFlags(vk::ShaderStageFlagBits::eVertex);
+    descriptorSetLayoutBingings[0].setStageFlags(vk::ShaderStageFlagBits::eFragment);
 
     // base color texture
     descriptorSetLayoutBingings[1].setBinding(1);
@@ -204,8 +204,14 @@ void GLTFPBRMaterial::createDefaultResources()
 
     _defaultEmissiveImage = VulkanImage(
         _device, _immediateSubmit, _memoryAllocator, vk::Extent2D{ dimension, dimension },
-        vk::Format::eR8G8B8A8Unorm, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, data.get(),
+        vk::Format::eR8G8B8A8Srgb, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, data.get(),
         dimension* dimension * 4
+    );
+
+    _defaultNormalImage = VulkanImage(
+        _device, _immediateSubmit, _memoryAllocator, vk::Extent2D{ dimension, dimension },
+        vk::Format::eR8G8B8A8Unorm, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, data.get(),
+        dimension * dimension * 4
     );
 
     vk::SamplerCreateInfo samplerCreateInfo;
@@ -240,6 +246,67 @@ void GLTFPBRMaterial::processUniformParameters(vk::raii::DescriptorSet& descript
         {
             uniformParameters.baseColorFactor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
         }
+    }
+    else
+    {
+        uniformParameters.baseColorFactor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+    }
+    if (material->properties.contains("emissiveFactor"))
+    {
+        try
+        {
+            FloatVector4Property* emissiveFactorProperty = dynamic_cast<FloatVector4Property*>(material->properties["emissiveFactor"].get());
+            uniformParameters.emissiveFactor = emissiveFactorProperty->data;
+        }
+        catch (std::bad_cast)
+        {
+            uniformParameters.baseColorFactor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+        }
+    }
+    else
+    {
+        uniformParameters.baseColorFactor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+    }
+    if (material->properties.contains("rougnessFactor"))
+    {
+        try
+        {
+            FloatProperty* rougnessFactorProperty = dynamic_cast<FloatProperty*>(material->properties["rougnessFactor"].get());
+            uniformParameters.roughnessMetallicNormalFactors.g = rougnessFactorProperty->data;
+        }
+        catch (std::bad_cast)
+        {
+            uniformParameters.roughnessMetallicNormalFactors.g = 1.0f;
+        }
+    }
+    else
+    {
+        uniformParameters.roughnessMetallicNormalFactors.g = 1.0f;
+    }
+    if (material->properties.contains("metallicFactor"))
+    {
+        try
+        {
+            FloatProperty* metallicFactorProperty = dynamic_cast<FloatProperty*>(material->properties["metallicFactor"].get());
+            uniformParameters.roughnessMetallicNormalFactors.b = metallicFactorProperty->data;
+        }
+        catch (std::bad_cast)
+        {
+            uniformParameters.roughnessMetallicNormalFactors.b = 1.0f;
+        }
+    }
+    else
+    {
+        uniformParameters.roughnessMetallicNormalFactors.b = 1.0f;
+    }
+
+    if (material->properties.contains("normalTexture"))
+    {
+        uniformParameters.roughnessMetallicNormalFactors.r = 0.0f;
+    }
+    else
+    {
+        uniformParameters.roughnessMetallicNormalFactors.r = 1.0f;
     }
 
     resources.uniformBuffer = VulkanUniformBuffer(_device, _memoryAllocator, sizeof(GLTFPBRMaterial::MaterialUniformParameters));

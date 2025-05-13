@@ -2,8 +2,6 @@
 
 #include <vulkan/vulkan_raii.hpp>
 
-#include <stb/stb_image.h>
-
 #include <SVMV/VulkanImage.hxx>
 
 namespace SVMV

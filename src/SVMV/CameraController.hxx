@@ -32,6 +32,8 @@ namespace SVMV
         glm::vec3 getCameraPosition();
         glm::vec3 getCameraFront();
         glm::vec3 getCameraUp();
+        float getPitch();
+        float getYaw();
 
     private:
         bool _active        { false };

@@ -28,11 +28,12 @@ namespace SVMV
     public:
         struct MaterialUniformParameters
         {
-            glm::vec4 baseColorFactor           { 1.0f };
-            glm::vec4 roughnessMetallicFactors  { 1.0f };
+            glm::vec4 baseColorFactor                   { 1.0f };
+            glm::vec4 roughnessMetallicNormalFactors    { 1.0f }; // same format as the roughnessMetallicTexture (G and B channels), with the R channel containing a bool for the presence of the normal texture
+            glm::vec4 emissiveFactor                    { 1.0f };
 
             // padding to align to 256 bytes
-            glm::vec4 padding[14];
+            glm::vec4 padding[13];
         };
 
         struct MaterialResources

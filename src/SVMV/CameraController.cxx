@@ -162,3 +162,13 @@ glm::vec3 CameraControllerNoclip::getCameraUp()
 {
     return _up;
 }
+
+float CameraControllerNoclip::getPitch()
+{
+    return _pitch;
+}
+
+float CameraControllerNoclip::getYaw()
+{
+    return _yaw;
+}

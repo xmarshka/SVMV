@@ -39,7 +39,7 @@ layout(push_constant) uniform PushConstants {
 
 layout(location = 0) out vec4 out_col_0;
 layout(location = 1) out vec2 out_uv_0;
-layout(location = 2) out vec3 out_ws_Ng;
+layout(location = 2) out vec3 out_ts_Ng;
 
 layout(location = 3) out vec3 out_ts_P;
 layout(location = 4) out vec3 out_ts_cam_pos;
@@ -54,12 +54,11 @@ void main() {
 
     out_uv_0 = vec2(pc.uv0_buf.data[gl_VertexIndex * 2], pc.uv0_buf.data[gl_VertexIndex * 2 + 1]);
 
-    out_ws_Ng = vec3(0.0, 0.0, 0.0);
+    out_ts_Ng = vec3(0.0, 0.0, 0.0);
 
     mat3 normal_mat = mat3(pc.normal_mat_buf.data[0]);
 
     vec3 ws_Ng = normalize(normal_mat * vec3(pc.N_buf.data[gl_VertexIndex * 3 + 0], pc.N_buf.data[gl_VertexIndex * 3 + 1], pc.N_buf.data[gl_VertexIndex * 3 + 2]));
-    out_ws_Ng = ws_Ng;
 
     vec3 ws_T = normalize(vec3(normal_mat * vec3(pc.T_buf.data[gl_VertexIndex * 4 + 0], pc.T_buf.data[gl_VertexIndex * 4 + 1], pc.T_buf.data[gl_VertexIndex * 4 + 2])));
 
@@ -67,6 +66,7 @@ void main() {
 
     mat3 ts_mat = transpose(mat3(ws_T, ws_B, ws_Ng));
 
+    out_ts_Ng = ts_mat * ws_Ng;
     out_ts_P = ts_mat * vec3(pc.model_mat_buf.data[0] * vec4(ms_P, 1.0));
     out_ts_cam_pos = ts_mat * cam_mats_buf.ws_pos.xyz;
     out_ts_light_pos_0 = ts_mat * light_params_buf.ws_pos_0.xyz;
