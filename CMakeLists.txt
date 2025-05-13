@@ -21,7 +21,6 @@ set(SVMV_INCLUDES
 	${SRC_DIR}/VulkanBuffer.hxx
 	${SRC_DIR}/VulkanImage.hxx
 	${SRC_DIR}/VulkanLight.hxx
-	${SRC_DIR}/VulkanIBL.hxx
 	${SRC_DIR}/VulkanMaterial.hxx
 	${SRC_DIR}/VulkanShaderStructures.hxx
 	${SRC_DIR}/VulkanGLTFPBRMaterial.hxx
@@ -62,12 +61,10 @@ set(SVMV_SOURCES
 	${SRC_DIR}/VulkanBuffer.cxx
 	${SRC_DIR}/VulkanImage.cxx
 	${SRC_DIR}/VulkanLight.cxx
-	${SRC_DIR}/VulkanIBL.cxx
 	${SRC_DIR}/VulkanGLTFPBRMaterial.cxx
 	${SRC_DIR}/VulkanDescriptorWriter.cxx
 	${SRC_DIR}/VulkanUtilities.cxx
 	${SRC_DIR}/Loader.cxx
-	${SRC_DIR}/Input.cxx
 	${SRC_DIR}/InputHandler.cxx
 	${SRC_DIR}/CameraController.cxx
 	${THIRDPARTY_DIR}/MikkTSpace/mikktspace.c

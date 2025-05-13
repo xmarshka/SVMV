@@ -1,7 +1,5 @@
 ## SVMV - Simple Vulkan Material Visualization
 
----
-
 A glTF model viewer focused on rendering properties of the glTF PBR material model. Written in C++ using the Vulkan API and targeting the Microsoft Windows operating system (version 10+).
 
 ![Rendered "Damaged Helmet" model](screenshots/helmet_full.PNG)
@@ -27,16 +25,12 @@ Along with their respective factor properties.
 
 ## Features
 
----
-
  - Real-time rendering of glTF PBR models
  - Tangent generation using the MikkTSpace algorithm
  - Control over the position and color of three orbiting point lights in real time
  - Control over a free moving FPS-like camera
 
 ## Libraries used
-
----
 
  - Vulkan API via the [Vulkan SDK](https://www.lunarg.com/vulkan-sdk/)
  - shaderc via the [Vulkan SDK](https://www.lunarg.com/vulkan-sdk/)
@@ -51,8 +45,6 @@ Along with their respective factor properties.
 
 ## Pre-built binaries
 
----
-
 Included in the Releases section is a prebuilt executable of the application, along with a handful of sample models taken from the [sample model collection provided by the Khronos Group](https://github.com/KhronosGroup/glTF-Sample-Models/tree/main/2.0):
 
  - [Antique Camera](https://github.com/KhronosGroup/glTF-Sample-Models/tree/main/2.0/AntiqueCamera)
@@ -63,8 +55,6 @@ Included in the Releases section is a prebuilt executable of the application, al
 A batch file exists for each of the above mentioned models which runs the application and loads each of the models.
 
 ## Building
-
----
 
 Necesarry to build the application are the above mentioned libraries, a Windows 10/11 operating system, a GPU that supports Vulkan and the CMake build system version 3.25+.
 
